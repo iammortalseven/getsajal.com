@@ -20,7 +20,6 @@
             position: relative;
             text-align: center;
             max-width: 90vw;
-            transition: transform 0.3s;
             z-index: 2;
         }
 
@@ -56,33 +55,46 @@
             pointer-events: none;
         }
 
-        .visible {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-        }
-
-        /* Bubble animations */
         .bubble {
             position: absolute;
-            background: rgba(255, 255, 255, 0.15);
             border-radius: 50%;
-            animation: float 8s linear infinite;
+            animation: float 8s linear infinite, sway 3s ease-in-out infinite;
             cursor: pointer;
-            transition: transform 0.2s;
+            box-shadow: 0 0 15px rgba(255,255,255,0.3);
+            opacity: 0.3;
+        }
+
+        .explosion {
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            animation: explode 0.8s ease-out forwards;
+            opacity: 0.7;
         }
 
         @keyframes float {
-            from {
-                transform: translateY(100vh);
-            }
-            to {
-                transform: translateY(-100%);
-            }
+            0% { transform: translateY(100vh); }
+            100% { transform: translateY(-100%); }
         }
 
-        @keyframes pop {
-            0% { transform: scale(1); opacity: 1; }
-            100% { transform: scale(2); opacity: 0; }
+        @keyframes sway {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(calc(var(--sway-amount) * 1px)); }
+        }
+
+        @keyframes explode {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(0);
+                opacity: 0;
+            }
         }
 
         @keyframes pulseGlow {
@@ -99,34 +111,74 @@
         <div class="message hidden" id="message2">
             Congratulations then! ✨
         </div>
+        <div class="message hidden" id="final-message">
+            I'm glad you're enjoying this website<br>
+            you unemployed dumbass! 💩
+        </div>
     </div>
 
     <script>
-        // Audio context for bubble pop sound
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
+        let popCount = 0;
+        let transitionDone = false;
+
         function createBubble() {
             const bubble = document.createElement('div');
-            const size = Math.random() * 40 + 20;
-            const left = Math.random() * 100;
+            const size = Math.random() * 80 + 40;
+            const hue = Math.random() * 360;
             
             bubble.className = 'bubble';
             bubble.style.width = `${size}px`;
             bubble.style.height = `${size}px`;
-            bubble.style.left = `${left}%`;
+            bubble.style.left = `${Math.random() * 100}%`;
+            bubble.style.background = `hsla(${hue}, 70%, 60%, 0.3)`;
+            bubble.style.setProperty('--sway-amount', Math.random() * 100 - 50);
             
-            // Add pop animation on click
             bubble.addEventListener('click', function(e) {
                 e.stopPropagation();
-                playPopSound();
-                bubble.style.animation = 'pop 0.3s forwards';
-                setTimeout(() => bubble.remove(), 300);
+                popBubble(bubble);
             });
 
             document.body.appendChild(bubble);
-            
-            // Remove bubble after animation
             setTimeout(() => bubble.remove(), 8000);
+        }
+
+        function popBubble(bubble) {
+            playPopSound();
+            createExplosion(bubble);
+            bubble.remove();
+            popCount++;
+            
+            if(popCount >= 10) {
+                document.getElementById('message1').classList.add('hidden');
+                document.getElementById('message2').classList.add('hidden');
+                document.getElementById('final-message').classList.remove('hidden');
+            }
+        }
+
+        function createExplosion(bubble) {
+            const rect = bubble.getBoundingClientRect();
+            const explosion = document.createElement('div');
+            explosion.className = 'explosion';
+
+            for(let i = 0; i < 12; i++) {
+                const particle = document.createElement('div');
+                const hue = Math.random() * 360;
+                
+                particle.className = 'particle';
+                particle.style.width = `${Math.random() * 15 + 5}px`;
+                particle.style.height = particle.style.width;
+                particle.style.background = `hsla(${hue}, 70%, 60%, 0.6)`;
+                particle.style.left = `${rect.left + rect.width/2}px`;
+                particle.style.top = `${rect.top + rect.height/2}px`;
+                particle.style.setProperty('--tx', `${Math.random() * 200 - 100}px`);
+                particle.style.setProperty('--ty', `${Math.random() * -200 - 50}px`);
+                
+                explosion.appendChild(particle);
+            }
+
+            document.body.appendChild(explosion);
+            setTimeout(() => explosion.remove(), 800);
         }
 
         function playPopSound() {
@@ -137,7 +189,7 @@
             gainNode.connect(audioContext.destination);
 
             oscillator.type = 'square';
-            oscillator.frequency.setValueAtTime(200 + Math.random() * 800, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(300 + Math.random() * 1000, audioContext.currentTime);
             gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
             
             oscillator.start();
@@ -145,24 +197,22 @@
             oscillator.stop(audioContext.currentTime + 0.1);
         }
 
-        let transitionDone = false;
+        // Initial bubbles
+        for(let i = 0; i < 15; i++) {
+            setTimeout(createBubble, Math.random() * 2000);
+        }
+        
+        // Bubble generator
+        setInterval(createBubble, 750);
+
+        // Click handling
         document.body.addEventListener('click', () => {
             if(!transitionDone) {
-                const message1 = document.getElementById('message1');
-                const message2 = document.getElementById('message2');
-                
-                message1.classList.add('hidden');
-                message2.classList.remove('hidden');
+                document.getElementById('message1').classList.add('hidden');
+                document.getElementById('message2').classList.remove('hidden');
                 transitionDone = true;
             }
         });
-
-        // Create bubbles every 1.5 seconds
-        setInterval(createBubble, 1500);
-        // Create initial bubbles
-        for(let i = 0; i < 5; i++) {
-            setTimeout(createBubble, Math.random() * 2000);
-        }
     </script>
 </body>
 </html>
