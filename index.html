@@ -21,6 +21,7 @@
             text-align: center;
             max-width: 90vw;
             transition: transform 0.3s;
+            z-index: 2;
         }
 
         .message {
@@ -31,7 +32,7 @@
             text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
             font-size: clamp(2rem, 6vw, 4rem);
             position: relative;
-            transition: all 0.5s ease-in-out;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .message::before {
@@ -60,34 +61,33 @@
             transform: scale(1) translateY(0);
         }
 
+        /* Bubble animations */
+        .bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            animation: float 8s linear infinite;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        @keyframes float {
+            from {
+                transform: translateY(100vh);
+            }
+            to {
+                transform: translateY(-100%);
+            }
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
         @keyframes pulseGlow {
             0%, 100% { opacity: 0.5; }
             50% { opacity: 1; }
-        }
-
-        .sparkles {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .sparkle {
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-            animation: sparkle 1s ease-out forwards;
-        }
-
-        @keyframes sparkle {
-            0% {
-                transform: translateY(0) scale(0);
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(-100px) scale(1);
-                opacity: 0;
-            }
         }
     </style>
 </head>
@@ -102,48 +102,67 @@
     </div>
 
     <script>
-        let isFirstMessage = true;
-        const card = document.querySelector('.card');
+        // Audio context for bubble pop sound
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         
-        function createSparkles(x, y) {
-            const sparkles = document.createElement('div');
-            sparkles.className = 'sparkles';
+        function createBubble() {
+            const bubble = document.createElement('div');
+            const size = Math.random() * 40 + 20;
+            const left = Math.random() * 100;
             
-            for(let i = 0; i < 8; i++) {
-                const sparkle = document.createElement('div');
-                sparkle.className = 'sparkle';
-                sparkle.style.left = x + 'px';
-                sparkle.style.top = y + 'px';
-                sparkle.style.width = Math.random() * 8 + 2 + 'px';
-                sparkle.style.height = sparkle.style.width;
-                sparkle.style.animationDelay = Math.random() * 0.5 + 's';
-                sparkles.appendChild(sparkle);
-            }
+            bubble.className = 'bubble';
+            bubble.style.width = `${size}px`;
+            bubble.style.height = `${size}px`;
+            bubble.style.left = `${left}%`;
             
-            document.body.appendChild(sparkles);
-            setTimeout(() => sparkles.remove(), 1000);
+            // Add pop animation on click
+            bubble.addEventListener('click', function(e) {
+                e.stopPropagation();
+                playPopSound();
+                bubble.style.animation = 'pop 0.3s forwards';
+                setTimeout(() => bubble.remove(), 300);
+            });
+
+            document.body.appendChild(bubble);
+            
+            // Remove bubble after animation
+            setTimeout(() => bubble.remove(), 8000);
         }
 
-        card.addEventListener('click', (e) => {
-            const message1 = document.getElementById('message1');
-            const message2 = document.getElementById('message2');
+        function playPopSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
             
-            createSparkles(e.clientX, e.clientY);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.type = 'square';
+            oscillator.frequency.setValueAtTime(200 + Math.random() * 800, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
             
-            if(isFirstMessage) {
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+
+        let transitionDone = false;
+        document.body.addEventListener('click', () => {
+            if(!transitionDone) {
+                const message1 = document.getElementById('message1');
+                const message2 = document.getElementById('message2');
+                
                 message1.classList.add('hidden');
                 message2.classList.remove('hidden');
-            } else {
-                message2.classList.add('hidden');
-                message1.classList.remove('hidden');
+                transitionDone = true;
             }
-            
-            isFirstMessage = !isFirstMessage;
-            
-            // Add temporary click animation
-            card.style.transform = 'scale(0.95)';
-            setTimeout(() => card.style.transform = 'scale(1)', 200);
         });
+
+        // Create bubbles every 1.5 seconds
+        setInterval(createBubble, 1500);
+        // Create initial bubbles
+        for(let i = 0; i < 5; i++) {
+            setTimeout(createBubble, Math.random() * 2000);
+        }
     </script>
 </body>
 </html>
