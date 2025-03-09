@@ -28,21 +28,42 @@
             left: 20px;
             z-index: 1000;
             background: rgba(255, 255, 255, 0.95);
-            padding: 10px 15px;
             border-radius: 4px;
             box-shadow: 0 3px 10px rgba(0,0,0,0.15);
-            transition: transform 0.3s;
         }
 
         .menu-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
             font-size: 16px;
             color: #000;
             text-decoration: none;
             cursor: pointer;
-            transition: 0.3s;
+            transition: all 0.3s;
+            position: relative;
         }
 
-        .menu-trigger.active {
+        .menu-trigger span {
+            position: absolute;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .menu-trigger .close-icon {
+            opacity: 0;
+            transform: rotate(-45deg);
+            font-size: 24px;
+        }
+
+        .menu-trigger.active .close-icon {
+            opacity: 1;
+            transform: rotate(0deg);
+        }
+
+        .menu-trigger.active .menu-text {
+            opacity: 0;
             transform: rotate(45deg);
         }
 
@@ -122,6 +143,11 @@
             padding: 80px 20px 100px;
             width: calc(100% - 40px);
             margin: 0 auto;
+            visibility: hidden;
+        }
+
+        .grid.initialized {
+            visibility: visible;
         }
 
         /* Photo Items */
@@ -204,14 +230,17 @@
 </head>
 <body>
     <header class="header">
-        <a href="#" class="menu-trigger">Sajal</a>
+        <a href="#" class="menu-trigger">
+            <span class="menu-text">Sajal</span>
+            <span class="close-icon">×</span>
+        </a>
     </header>
 
     <div class="menu-overlay">
         <div class="menu-content">
             <a href="#" class="about-link">About</a>
             <a href="#contact">Contact</a>
-            <a href="https://instagram.com/getsajal" target="_blank" class="instagram-link">
+            <a href="https://instagram.com/yourusername" target="_blank" class="instagram-link">
                 <i class="fab fa-instagram"></i>
                 Instagram
             </a>
@@ -220,7 +249,7 @@
 
     <div class="about-content">
         <h2>About Me</h2>
-        <p>I am a passionate hobbyist who loves photography. I love doing portrait shoots and event photography.</p>
+        <p>Add your about text here. Describe your photography style, experience, and artistic vision.</p>
     </div>
 
     <div class="grid">
@@ -266,7 +295,7 @@
         © 2023 Sajal. All images are protected by copyright.
     </div>
 
-    <div class="back-to-top">Back to top ↑</div>
+    <div class="back-to-top">↑</div>
 
     <script>
         // Menu Toggle
@@ -275,13 +304,46 @@
         const aboutLink = document.querySelector('.about-link');
         const aboutContent = document.querySelector('.about-content');
         const backToTop = document.querySelector('.back-to-top');
+        const grid = document.querySelector('.grid');
+
+        // Masonry Layout
+        function resizeMasonry() {
+            const gap = parseFloat(getComputedStyle(grid).gap);
+            const items = grid.children;
+            
+            grid.style.gridAutoRows = '1px';
+            
+            Promise.all(Array.from(items).map(item => {
+                return new Promise(resolve => {
+                    const img = item.querySelector('img');
+                    if (img.complete) {
+                        resolve();
+                    } else {
+                        img.onload = resolve;
+                        img.onerror = resolve;
+                    }
+                });
+            })).then(() => {
+                for(let item of items) {
+                    const img = item.querySelector('img');
+                    const rowSpan = Math.ceil((img.offsetHeight + gap) / (gap + 1));
+                    item.style.gridRowEnd = `span ${rowSpan}`;
+                }
+                grid.classList.add('initialized');
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', resizeMasonry);
+        window.addEventListener('load', resizeMasonry);
+        window.addEventListener('resize', resizeMasonry);
+        setTimeout(resizeMasonry, 500);
 
         // Menu Functionality
         menuTrigger.addEventListener('click', (e) => {
             e.preventDefault();
             menuOverlay.classList.toggle('active');
             menuTrigger.classList.toggle('active');
-            menuTrigger.innerHTML = menuTrigger.classList.contains('active') ? '×' : 'Sajal';
         });
 
         // Close Menu
@@ -289,7 +351,6 @@
             if (e.target === menuOverlay) {
                 menuOverlay.classList.remove('active');
                 menuTrigger.classList.remove('active');
-                menuTrigger.innerHTML = 'Sajal';
             }
         });
 
@@ -299,7 +360,6 @@
             aboutContent.classList.add('active');
             menuOverlay.classList.remove('active');
             menuTrigger.classList.remove('active');
-            menuTrigger.innerHTML = 'Sajal';
         });
 
         // Close About on outside click
@@ -340,24 +400,6 @@
                 behavior: 'smooth'
             });
         });
-
-        // Masonry Layout
-        function resizeMasonry() {
-            const grid = document.querySelector('.grid');
-            const gap = parseFloat(getComputedStyle(grid).gap);
-            const items = grid.children;
-            
-            grid.style.gridAutoRows = '1px';
-            
-            for(let item of items) {
-                const img = item.querySelector('img');
-                const rowSpan = Math.ceil((img.offsetHeight + gap) / (gap + 1));
-                item.style.gridRowEnd = `span ${rowSpan}`;
-            }
-        }
-
-        window.addEventListener('load', resizeMasonry);
-        window.addEventListener('resize', resizeMasonry);
     </script>
 </body>
 </html>
