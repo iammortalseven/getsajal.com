@@ -3,156 +3,361 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NoYouDon't!!!</title>
-    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
+    <title>Sajal - Portfolio</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            background: #fff;
+            overflow-x: hidden;
+            position: relative;
             min-height: 100vh;
-            display: grid;
-            place-items: center;
-            background: #87CEEB;
-            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 15px;
+            border-radius: 4px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+            transition: transform 0.3s;
+        }
+
+        .menu-trigger {
+            font-size: 16px;
+            color: #000;
+            text-decoration: none;
             cursor: pointer;
+            transition: 0.3s;
         }
 
-        .card {
-            position: relative;
-            text-align: center;
-            max-width: 90vw;
-            z-index: 2;
+        .menu-trigger.active {
+            transform: rotate(45deg);
         }
 
-        .message {
-            font-family: 'Comic Neue', cursive;
+        /* Menu Overlay */
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            display: none;
+            backdrop-filter: blur(10px);
+            z-index: 999;
+            padding: 100px 10%;
+        }
+
+        .menu-overlay.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .menu-content {
+            max-width: 600px;
+        }
+
+        .menu-content a {
+            display: block;
+            font-size: 24px;
+            margin: 20px 0;
+            color: #000;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            transition: all 0.3s;
+            max-width: max-content;
+        }
+
+        .menu-content a:hover {
+            background: #0066cc;
             color: white;
-            margin: 0;
-            line-height: 1.2;
-            text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
-            font-size: clamp(2rem, 6vw, 4rem);
-            position: relative;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .message::before {
-            content: '';
-            position: absolute;
-            inset: -10px;
-            border-radius: 20px;
-            background: linear-gradient(45deg, 
-                rgba(255,255,255,0.8),
-                rgba(255,255,255,0.3),
-                rgba(255,255,255,0.8));
-            filter: blur(15px);
-            opacity: 0.7;
-            z-index: -1;
-            animation: pulseGlow 2s ease-in-out infinite;
+        .instagram-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .hidden {
+        /* About Section */
+        .about-content {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 600px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             opacity: 0;
-            transform: scale(0.8) translateY(20px);
-            pointer-events: none;
+            visibility: hidden;
+            transition: all 0.3s ease-in-out;
+            z-index: 1001;
         }
 
-        .bubble {
-            position: absolute;
-            border-radius: 50%;
-            animation: float 8s linear infinite;
+        .about-content.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Grid Container */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            padding: 80px 20px 100px;
+            width: calc(100% - 40px);
+            margin: 0 auto;
+        }
+
+        /* Photo Items */
+        .photo-item {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+
+        .photo-item.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .photo-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 3px;
+        }
+
+        /* Copyright */
+        .copyright {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            padding: 20px;
+            margin: 30px auto 0;
+            width: calc(100% - 40px);
+            max-width: 1400px;
+        }
+
+        /* Back to Top Button */
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 12px 15px;
+            border-radius: 4px;
             cursor: pointer;
-            background: rgba(255, 255, 255, 0.15);
-            transition: transform 0.2s;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
-        @keyframes float {
-            from { transform: translateY(100vh); }
-            to { transform: translateY(-100%); }
+        .back-to-top.visible {
+            opacity: 1;
         }
 
-        @keyframes pulseGlow {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .menu-overlay {
+                padding: 100px 20px;
+            }
+            
+            .about-content {
+                position: fixed;
+                width: calc(100% - 40px);
+                margin: 30px 20px;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+                padding: 70px 15px 100px;
+            }
+
+            .back-to-top {
+                bottom: 20px;
+                right: 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div class="message visible" id="message1">
-            Haaaaaaaaaave you met Sam?
-        </div>
-        <div class="message hidden" id="message2">
-            Congratulations then! ✨
-        </div>
-        <div class="message hidden" id="final-message">
-            I'm glad you're enjoying this website<br>
-            you unemployed dumbass! 💩
+    <header class="header">
+        <a href="#" class="menu-trigger">Sajal</a>
+    </header>
+
+    <div class="menu-overlay">
+        <div class="menu-content">
+            <a href="#" class="about-link">About</a>
+            <a href="#contact">Contact</a>
+            <a href="https://instagram.com/getsajal" target="_blank" class="instagram-link">
+                <i class="fab fa-instagram"></i>
+                Instagram
+            </a>
         </div>
     </div>
 
+    <div class="about-content">
+        <h2>About Me</h2>
+        <p>I am a passionate hobbyist who loves photography. I love doing portrait shoots and event photography.</p>
+    </div>
+
+    <div class="grid">
+        <div class="photo-item">
+            <img src="images/photo-1.webp" alt="Project 1" loading="lazy">
+        </div>
+        <div class="photo-item">
+            <img src="images/photo-2.webp" alt="Project 2" loading="lazy">
+        </div>
+        <div class="photo-item">
+            <img src="images/photo-3.webp" alt="Project 3" loading="lazy">
+        </div>
+        <div class="photo-item">
+            <img src="images/photo-4.webp" alt="Project 4" loading="lazy">
+        </div>
+        <div class="photo-item">
+            <img src="images/photo-5.webp" alt="Project 5" loading="lazy">
+        </div>
+        <div class="photo-item">
+            <img src="images/photo-6.webp" alt="Project 6" loading="lazy">
+        </div>
+        <div class="photo-item">
+            <img src="images/photo-7.webp" alt="Project 7" loading="lazy">
+        </div>
+        <div class="photo-item">
+            <img src="images/photo-8.webp" alt="Project 8" loading="lazy">
+        </div>
+        <div class="photo-item">
+            <img src="images/photo-9.webp" alt="Project 9" loading="lazy">
+        </div>
+        <div class="photo-item">
+            <img src="images/photo-10.webp" alt="Project 10" loading="lazy">
+        </div>
+        <div class="photo-item">
+            <img src="images/photo-11.webp" alt="Project 11" loading="lazy">
+        </div>
+        <div class="photo-item">
+            <img src="images/photo-12.webp" alt="Project 12" loading="lazy">
+        </div>
+    </div>
+
+    <div class="copyright">
+        © 2023 Sajal. All images are protected by copyright.
+    </div>
+
+    <div class="back-to-top">Back to top ↑</div>
+
     <script>
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        let popCount = 0;
-        let transitionDone = false;
+        // Menu Toggle
+        const menuTrigger = document.querySelector('.menu-trigger');
+        const menuOverlay = document.querySelector('.menu-overlay');
+        const aboutLink = document.querySelector('.about-link');
+        const aboutContent = document.querySelector('.about-content');
+        const backToTop = document.querySelector('.back-to-top');
 
-        function createBubble() {
-            const bubble = document.createElement('div');
-            const size = Math.random() * 40 + 20;
-            
-            bubble.className = 'bubble';
-            bubble.style.width = `${size}px`;
-            bubble.style.height = `${size}px`;
-            bubble.style.left = `${Math.random() * 100}%`;
-            
-            bubble.addEventListener('click', function(e) {
-                e.stopPropagation();
-                popBubble(bubble);
-            });
+        // Menu Functionality
+        menuTrigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            menuOverlay.classList.toggle('active');
+            menuTrigger.classList.toggle('active');
+            menuTrigger.innerHTML = menuTrigger.classList.contains('active') ? '×' : 'Sajal';
+        });
 
-            document.body.appendChild(bubble);
-            setTimeout(() => bubble.remove(), 8000);
-        }
-
-        function popBubble(bubble) {
-            playPopSound();
-            bubble.remove();
-            popCount++;
-            
-            if(popCount >= 10) {
-                document.getElementById('message1').classList.add('hidden');
-                document.getElementById('message2').classList.add('hidden');
-                document.getElementById('final-message').classList.remove('hidden');
-            }
-        }
-
-        function playPopSound() {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-
-            oscillator.type = 'square';
-            oscillator.frequency.setValueAtTime(200 + Math.random() * 800, audioContext.currentTime);
-            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-            
-            oscillator.start();
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-            oscillator.stop(audioContext.currentTime + 0.1);
-        }
-
-        // Create initial bubbles
-        for(let i = 0; i < 8; i++) {
-            setTimeout(createBubble, Math.random() * 2000);
-        }
-        setInterval(createBubble, 1500);
-
-        document.body.addEventListener('click', () => {
-            if(!transitionDone) {
-                document.getElementById('message1').classList.add('hidden');
-                document.getElementById('message2').classList.remove('hidden');
-                transitionDone = true;
+        // Close Menu
+        menuOverlay.addEventListener('click', (e) => {
+            if (e.target === menuOverlay) {
+                menuOverlay.classList.remove('active');
+                menuTrigger.classList.remove('active');
+                menuTrigger.innerHTML = 'Sajal';
             }
         });
+
+        // About Section
+        aboutLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            aboutContent.classList.add('active');
+            menuOverlay.classList.remove('active');
+            menuTrigger.classList.remove('active');
+            menuTrigger.innerHTML = 'Sajal';
+        });
+
+        // Close About on outside click
+        document.addEventListener('click', (e) => {
+            if (!aboutContent.contains(e.target) && !e.target.classList.contains('about-link')) {
+                aboutContent.classList.remove('active');
+            }
+        });
+
+        // Scroll Animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { 
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        });
+
+        document.querySelectorAll('.photo-item').forEach(item => {
+            observer.observe(item);
+        });
+
+        // Back to Top Button
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 500) {
+                backToTop.classList.add('visible');
+            } else {
+                backToTop.classList.remove('visible');
+            }
+        });
+
+        backToTop.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        // Masonry Layout
+        function resizeMasonry() {
+            const grid = document.querySelector('.grid');
+            const gap = parseFloat(getComputedStyle(grid).gap);
+            const items = grid.children;
+            
+            grid.style.gridAutoRows = '1px';
+            
+            for(let item of items) {
+                const img = item.querySelector('img');
+                const rowSpan = Math.ceil((img.offsetHeight + gap) / (gap + 1));
+                item.style.gridRowEnd = `span ${rowSpan}`;
+            }
+        }
+
+        window.addEventListener('load', resizeMasonry);
+        window.addEventListener('resize', resizeMasonry);
     </script>
 </body>
 </html>
