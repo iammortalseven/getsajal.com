@@ -265,7 +265,7 @@
 <body>
   <header class="header">
     <a href="#" class="menu-trigger" aria-label="Open Menu">
-      <span class="menu-text">More</span>
+      <span class="menu-text">Sajal</span>
       <span class="close-icon" aria-hidden="true">×</span>
     </a>
   </header>
@@ -274,7 +274,7 @@
     <nav class="menu-content">
       <a href="#" class="about-link">About</a>
       <a href="#contact">Contact</a>
-      <a href="https://instagram.com/yourusername" target="_blank" class="instagram-link">
+      <a href="https://instagram.com/getsajal" target="_blank" class="instagram-link">
         <i class="fab fa-instagram" aria-hidden="true"></i>
         Instagram
       </a>
@@ -372,41 +372,26 @@
     window.addEventListener('resize', resizeMasonry);
     setTimeout(resizeMasonry, 500);
     
-    // Menu Functionality
-    menuTrigger.addEventListener('click', (e) => {
-      e.preventDefault();
-      menuOverlay.classList.toggle('active');
-      menuTrigger.classList.toggle('active');
+    // Fallback: Check on load if items are already in viewport and add "visible"
+    function checkVisibleItems() {
+      document.querySelectorAll('.photo-item').forEach(item => {
+        const rect = item.getBoundingClientRect();
+        if (rect.top < window.innerHeight) {
+          item.classList.add('visible');
+        }
+      });
+    }
+    window.addEventListener('load', () => {
+      setTimeout(checkVisibleItems, 100);
     });
     
-    menuOverlay.addEventListener('click', (e) => {
-      if (e.target === menuOverlay) {
-        menuOverlay.classList.remove('active');
-        menuTrigger.classList.remove('active');
-      }
-    });
-    
-    // About Section Toggle
-    aboutLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      aboutContent.classList.add('active');
-      menuOverlay.classList.remove('active');
-      menuTrigger.classList.remove('active');
-    });
-    
-    document.addEventListener('click', (e) => {
-      if (!aboutContent.contains(e.target) && !e.target.classList.contains('about-link')) {
-        aboutContent.classList.remove('active');
-      }
-    });
-    
-    // Fade In on Scroll for Photos with a slight delay for smoother animation
+    // IntersectionObserver for fade in on scroll
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           setTimeout(() => {
             entry.target.classList.add('visible');
-          }, 100); // 100ms delay before fading in
+          }, 100);
         }
       });
     }, {
@@ -432,6 +417,34 @@
         top: 0,
         behavior: 'smooth'
       });
+    });
+    
+    // Menu Toggle
+    menuTrigger.addEventListener('click', (e) => {
+      e.preventDefault();
+      menuOverlay.classList.toggle('active');
+      menuTrigger.classList.toggle('active');
+    });
+    
+    menuOverlay.addEventListener('click', (e) => {
+      if (e.target === menuOverlay) {
+        menuOverlay.classList.remove('active');
+        menuTrigger.classList.remove('active');
+      }
+    });
+    
+    // About Section Toggle
+    aboutLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      aboutContent.classList.add('active');
+      menuOverlay.classList.remove('active');
+      menuTrigger.classList.remove('active');
+    });
+    
+    document.addEventListener('click', (e) => {
+      if (!aboutContent.contains(e.target) && !e.target.classList.contains('about-link')) {
+        aboutContent.classList.remove('active');
+      }
     });
   </script>
 </body>
