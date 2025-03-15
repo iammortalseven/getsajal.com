@@ -1,446 +1,442 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sajal - Portfolio</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            background: #fff;
-            overflow-x: hidden;
-            position: relative;
-            min-height: 100vh;
-        }
-
-        /* Header */
-        .header {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            left: auto;
-            z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 4px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
-        }
-
-        .menu-trigger {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 60px;
-            height: 60px;
-            font-size: 16px;
-            color: #000;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-        }
-
-        .menu-trigger span {
-            position: absolute;
-            transition: opacity 0.3s, transform 0.3s;
-        }
-
-        .menu-trigger .close-icon {
-            opacity: 0;
-            transform: rotate(-45deg);
-            font-size: 24px;
-        }
-
-        .menu-trigger.active .close-icon {
-            opacity: 1;
-            transform: rotate(0deg);
-        }
-
-        .menu-trigger.active .menu-text {
-            opacity: 0;
-            transform: rotate(45deg);
-        }
-
-        /* Menu Overlay */
-        .menu-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.98);
-            display: none;
-            backdrop-filter: blur(10px);
-            z-index: 999;
-            padding: 100px 5% 100px 35%;
-            justify-content: flex-end;
-        }
-
-        .menu-overlay.active {
-            display: flex;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .menu-content {
-            max-width: 600px;
-            margin-right: 5%;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-        }
-
-        .menu-content a {
-            display: block;
-            font-size: 24px;
-            margin: 10px 0;
-            color: #000;
-            text-decoration: none;
-            padding: 10px 15px;
-            border-radius: 4px;
-            transition: all 0.3s;
-            width: fit-content;
-            text-align: right;
-        }
-
-        .menu-content a:hover {
-            background: #0066cc;
-            color: white;
-        }
-
-        .instagram-link {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-
-        /* About Section */
-        .about-content {
-            position: fixed;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: 90%;
-            max-width: 600px;
-            padding: 30px;
-            background: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease-in-out;
-            z-index: 1001;
-        }
-
-        .about-content.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        /* Grid Container */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            padding: 80px 20px 100px;
-            width: calc(100% - 40px);
-            margin: 0 auto;
-            visibility: hidden;
-        }
-
-        .grid.initialized {
-            visibility: visible;
-        }
-
-        /* Photo Items */
-        .photo-item {
-            opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-        }
-
-        .photo-item.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .photo-item img {
-            width: 100%;
-            height: auto;
-            display: block;
-            border-radius: 3px;
-        }
-
-        /* Copyright */
-        .copyright {
-            text-align: center;
-            font-size: 12px;
-            color: #666;
-            padding: 20px;
-            margin: 30px auto 0;
-            width: calc(100% - 40px);
-            max-width: 1400px;
-        }
-
-        /* Back to Top Button */
-        .back-to-top {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 12px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.3s;
-            z-index: 1000;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
-
-        .back-to-top.visible {
-            opacity: 1;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @media (max-width: 768px) {
-            .header {
-                top: 8px;
-                right: 8px;
-                padding: 8px;
-            }
-            
-            .menu-overlay {
-                padding: 100px 8px;
-                justify-content: right;
-            }
-            
-            .menu-content {
-                align-items: right;
-                margin-right: 0;
-                text-align: right;
-            }
-            
-            .menu-content a {
-                text-align: right;
-                width: auto;
-                padding: 10px 8px;
-            }
-            
-            .instagram-link {
-                justify-content: right;
-            }
-            
-            .about-content {
-                position: fixed;
-                top: 100px;
-                transform: none;
-                width: calc(100% - 16px);
-                margin: 0 8px;
-                padding: 20px;
-                text-align: center;
-            }
-            
-            .grid {
-                grid-template-columns: 1fr;
-                padding: 75px 8px 20px;
-                width: calc(100% - 16px);
-            }
-
-            .copyright {
-                padding: 20px 8px;
-                width: calc(100% - 16px);
-            }
-
-            .back-to-top {
-                bottom: 20px;
-                right: 20px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sajal - Portfolio</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    :root {
+      /* Color Palette */
+      --background-color: #fff;
+      --primary-color: #000;
+      --accent-color: #0066cc;
+      --overlay-bg: rgba(255, 255, 255, 0.98);
+      --header-bg: rgba(255, 255, 255, 0.95);
+      --shadow-color: rgba(0, 0, 0, 0.15);
+      --box-shadow: 0 3px 10px var(--shadow-color);
+      
+      /* Spacing */
+      --small-gap: 8px;
+      --large-gap: 20px;
+      --mobile-margin: 8px;
+      --desktop-margin: 20px;
+    }
+    
+    /* Global Reset */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      background: var(--background-color);
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+    
+    /* Header & Navigation */
+    header.header {
+      position: fixed;
+      top: var(--desktop-margin);
+      right: var(--desktop-margin);
+      z-index: 1000;
+      background: var(--header-bg);
+      border-radius: 4px;
+      box-shadow: var(--box-shadow);
+      padding: 0.5rem;
+    }
+    
+    .menu-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      height: 60px;
+      font-size: 1rem;
+      color: var(--primary-color);
+      text-decoration: none;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+    
+    .menu-trigger .menu-text,
+    .menu-trigger .close-icon {
+      position: absolute;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    
+    .menu-trigger .close-icon {
+      opacity: 0;
+      transform: rotate(-45deg);
+      font-size: 1.5rem;
+    }
+    
+    .menu-trigger.active .close-icon {
+      opacity: 1;
+      transform: rotate(0deg);
+    }
+    
+    .menu-trigger.active .menu-text {
+      opacity: 0;
+      transform: rotate(45deg);
+    }
+    
+    /* Menu Overlay */
+    .menu-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--overlay-bg);
+      display: none;
+      backdrop-filter: blur(10px);
+      z-index: 999;
+      padding: 100px 5% 100px 35%;
+      justify-content: flex-end;
+    }
+    
+    .menu-overlay.active {
+      display: flex;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    .menu-content {
+      max-width: 600px;
+      margin-right: 5%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    
+    .menu-content a {
+      display: block;
+      font-size: 1.5rem;
+      margin: 10px 0;
+      color: var(--primary-color);
+      text-decoration: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+    
+    .menu-content a:hover {
+      background: var(--accent-color);
+      color: #fff;
+    }
+    
+    .instagram-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    
+    /* About Section */
+    .about-content {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      max-width: 600px;
+      padding: 30px;
+      background: var(--header-bg);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      z-index: 1001;
+    }
+    
+    .about-content.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    /* Main Content & Gallery */
+    main {
+      padding-top: var(--desktop-margin);
+      margin: 0 auto;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr; /* Mobile-first: single column */
+      gap: var(--small-gap);
+      padding: var(--small-gap);
+      width: calc(100% - (2 * var(--mobile-margin)));
+      margin: 0 auto;
+      visibility: hidden;
+    }
+    
+    .grid.initialized {
+      visibility: visible;
+    }
+    
+    .photo-item {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+    
+    .photo-item.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .photo-item img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 3px;
+    }
+    
+    /* Footer */
+    footer {
+      text-align: center;
+      font-size: 0.75rem;
+      color: #666;
+      padding: var(--small-gap);
+      margin: 30px auto 0;
+      width: calc(100% - (2 * var(--mobile-margin)));
+      max-width: 1400px;
+    }
+    
+    /* Back to Top Button */
+    .back-to-top {
+      position: fixed;
+      bottom: var(--desktop-margin);
+      right: var(--desktop-margin);
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 12px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .back-to-top.visible {
+      opacity: 1;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    /* Desktop Styles */
+    @media (min-width: 768px) {
+      header.header {
+        top: var(--desktop-margin);
+        right: var(--desktop-margin);
+      }
+      
+      .menu-overlay {
+        padding: 100px 5% 100px 35%;
+      }
+      
+      .about-content {
+        padding: 30px;
+      }
+      
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--large-gap);
+        padding: var(--desktop-margin);
+        width: calc(100% - (2 * var(--desktop-margin)));
+      }
+      
+      footer {
+        padding: var(--desktop-margin);
+        width: calc(100% - (2 * var(--desktop-margin)));
+      }
+      
+      .back-to-top {
+        bottom: var(--desktop-margin);
+        right: var(--desktop-margin);
+      }
+    }
+  </style>
 </head>
 <body>
-    <header class="header">
-        <a href="#" class="menu-trigger">
-            <span class="menu-text">Sajal</span>
-            <span class="close-icon">×</span>
-        </a>
-    </header>
-
-    <div class="menu-overlay">
-        <div class="menu-content">
-            <a href="#" class="about-link">About</a>
-            <a href="#contact">Contact</a>
-            <a href="https://instagram.com/yourusername" target="_blank" class="instagram-link">
-                <i class="fab fa-instagram"></i>
-                Instagram
-            </a>
-        </div>
-    </div>
-
-    <div class="about-content">
-        <h2>About Me</h2>
-        <p>Add your about text here. Describe your photography style, experience, and artistic vision.</p>
-    </div>
-
-    <div class="grid">
-        <div class="photo-item">
-            <img src="images/photo-1.webp" alt="Project 1" loading="lazy">
-        </div>
-        <div class="photo-item">
-            <img src="images/photo-2.webp" alt="Project 2" loading="lazy">
-        </div>
-        <div class="photo-item">
-            <img src="images/photo-3.webp" alt="Project 3" loading="lazy">
-        </div>
-        <div class="photo-item">
-            <img src="images/photo-4.webp" alt="Project 4" loading="lazy">
-        </div>
-        <div class="photo-item">
-            <img src="images/photo-5.webp" alt="Project 5" loading="lazy">
-        </div>
-        <div class="photo-item">
-            <img src="images/photo-6.webp" alt="Project 6" loading="lazy">
-        </div>
-        <div class="photo-item">
-            <img src="images/photo-7.webp" alt="Project 7" loading="lazy">
-        </div>
-        <div class="photo-item">
-            <img src="images/photo-8.webp" alt="Project 8" loading="lazy">
-        </div>
-        <div class="photo-item">
-            <img src="images/photo-9.webp" alt="Project 9" loading="lazy">
-        </div>
-        <div class="photo-item">
-            <img src="images/photo-10.webp" alt="Project 10" loading="lazy">
-        </div>
-        <div class="photo-item">
-            <img src="images/photo-11.webp" alt="Project 11" loading="lazy">
-        </div>
-        <div class="photo-item">
-            <img src="images/photo-12.webp" alt="Project 12" loading="lazy">
-        </div>
-    </div>
-
-    <div class="copyright">
-        © 2023 Sajal. All images are protected by copyright.
-    </div>
-
-    <div class="back-to-top">↑</div>
-
-    <script>
-        // Menu Toggle
-        const menuTrigger = document.querySelector('.menu-trigger');
-        const menuOverlay = document.querySelector('.menu-overlay');
-        const aboutLink = document.querySelector('.about-link');
-        const aboutContent = document.querySelector('.about-content');
-        const backToTop = document.querySelector('.back-to-top');
-        const grid = document.querySelector('.grid');
-
-        // Masonry Layout
-        function resizeMasonry() {
-            const gap = parseFloat(getComputedStyle(grid).gap);
-            const items = grid.children;
-            
-            grid.style.gridAutoRows = '1px';
-            
-            Promise.all(Array.from(items).map(item => {
-                return new Promise(resolve => {
-                    const img = item.querySelector('img');
-                    if (img.complete) {
-                        resolve();
-                    } else {
-                        img.onload = resolve;
-                        img.onerror = resolve;
-                    }
-                });
-            })).then(() => {
-                for(let item of items) {
-                    const img = item.querySelector('img');
-                    const rowSpan = Math.ceil((img.offsetHeight + gap) / (gap + 1));
-                    item.style.gridRowEnd = `span ${rowSpan}`;
-                }
-                grid.classList.add('initialized');
-            });
+  <header class="header">
+    <a href="#" class="menu-trigger" aria-label="Open Menu">
+      <span class="menu-text">Sajal</span>
+      <span class="close-icon" aria-hidden="true">×</span>
+    </a>
+  </header>
+  
+  <div class="menu-overlay" role="dialog" aria-modal="true">
+    <nav class="menu-content">
+      <a href="#" class="about-link">About</a>
+      <a href="#contact">Contact</a>
+      <a href="https://instagram.com/yourusername" target="_blank" class="instagram-link">
+        <i class="fab fa-instagram" aria-hidden="true"></i>
+        Instagram
+      </a>
+    </nav>
+  </div>
+  
+  <div class="about-content" role="dialog" aria-modal="true">
+    <h2>About Me</h2>
+    <p>Add your about text here. Describe your photography style, experience, and artistic vision.</p>
+  </div>
+  
+  <main>
+    <section class="grid">
+      <article class="photo-item">
+        <img src="images/photo-1.webp" alt="Project 1" loading="lazy">
+      </article>
+      <article class="photo-item">
+        <img src="images/photo-2.webp" alt="Project 2" loading="lazy">
+      </article>
+      <article class="photo-item">
+        <img src="images/photo-3.webp" alt="Project 3" loading="lazy">
+      </article>
+      <article class="photo-item">
+        <img src="images/photo-4.webp" alt="Project 4" loading="lazy">
+      </article>
+      <article class="photo-item">
+        <img src="images/photo-5.webp" alt="Project 5" loading="lazy">
+      </article>
+      <article class="photo-item">
+        <img src="images/photo-6.webp" alt="Project 6" loading="lazy">
+      </article>
+      <article class="photo-item">
+        <img src="images/photo-7.webp" alt="Project 7" loading="lazy">
+      </article>
+      <article class="photo-item">
+        <img src="images/photo-8.webp" alt="Project 8" loading="lazy">
+      </article>
+      <article class="photo-item">
+        <img src="images/photo-9.webp" alt="Project 9" loading="lazy">
+      </article>
+      <article class="photo-item">
+        <img src="images/photo-10.webp" alt="Project 10" loading="lazy">
+      </article>
+      <article class="photo-item">
+        <img src="images/photo-11.webp" alt="Project 11" loading="lazy">
+      </article>
+      <article class="photo-item">
+        <img src="images/photo-12.webp" alt="Project 12" loading="lazy">
+      </article>
+    </section>
+  </main>
+  
+  <footer class="copyright">
+    © 2023 Sajal. All images are protected by copyright.
+  </footer>
+  
+  <div class="back-to-top" aria-label="Back to Top">↑</div>
+  
+  <script>
+    // Menu Toggle
+    const menuTrigger = document.querySelector('.menu-trigger');
+    const menuOverlay = document.querySelector('.menu-overlay');
+    const aboutLink = document.querySelector('.about-link');
+    const aboutContent = document.querySelector('.about-content');
+    const backToTop = document.querySelector('.back-to-top');
+    const grid = document.querySelector('.grid');
+    
+    // Masonry Layout Functionality
+    function resizeMasonry() {
+      const gap = parseFloat(getComputedStyle(grid).gap);
+      const items = grid.children;
+      grid.style.gridAutoRows = '1px';
+      
+      Promise.all(Array.from(items).map(item => {
+        return new Promise(resolve => {
+          const img = item.querySelector('img');
+          if (img.complete) {
+            resolve();
+          } else {
+            img.onload = resolve;
+            img.onerror = resolve;
+          }
+        });
+      })).then(() => {
+        for (let item of items) {
+          const img = item.querySelector('img');
+          const rowSpan = Math.ceil((img.offsetHeight + gap) / (1 + gap));
+          item.style.gridRowEnd = `span ${rowSpan}`;
         }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', resizeMasonry);
-        window.addEventListener('load', resizeMasonry);
-        window.addEventListener('resize', resizeMasonry);
-        setTimeout(resizeMasonry, 500);
-
-        // Menu Functionality
-        menuTrigger.addEventListener('click', (e) => {
-            e.preventDefault();
-            menuOverlay.classList.toggle('active');
-            menuTrigger.classList.toggle('active');
-        });
-
-        // Close Menu
-        menuOverlay.addEventListener('click', (e) => {
-            if (e.target === menuOverlay) {
-                menuOverlay.classList.remove('active');
-                menuTrigger.classList.remove('active');
-            }
-        });
-
-        // About Section
-        aboutLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            aboutContent.classList.add('active');
-            menuOverlay.classList.remove('active');
-            menuTrigger.classList.remove('active');
-        });
-
-        // Close About on outside click
-        document.addEventListener('click', (e) => {
-            if (!aboutContent.contains(e.target) && !e.target.classList.contains('about-link')) {
-                aboutContent.classList.remove('active');
-            }
-        });
-
-        // Scroll Animations
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                }
-            });
-        }, { 
-            threshold: 0.1,
-            rootMargin: '0px 0px -100px 0px'
-        });
-
-        document.querySelectorAll('.photo-item').forEach(item => {
-            observer.observe(item);
-        });
-
-        // Back to Top Button
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 500) {
-                backToTop.classList.add('visible');
-            } else {
-                backToTop.classList.remove('visible');
-            }
-        });
-
-        backToTop.addEventListener('click', () => {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        });
-    </script>
+        grid.classList.add('initialized');
+      });
+    }
+    
+    document.addEventListener('DOMContentLoaded', resizeMasonry);
+    window.addEventListener('load', resizeMasonry);
+    window.addEventListener('resize', resizeMasonry);
+    setTimeout(resizeMasonry, 500);
+    
+    // Menu Functionality
+    menuTrigger.addEventListener('click', (e) => {
+      e.preventDefault();
+      menuOverlay.classList.toggle('active');
+      menuTrigger.classList.toggle('active');
+    });
+    
+    menuOverlay.addEventListener('click', (e) => {
+      if (e.target === menuOverlay) {
+        menuOverlay.classList.remove('active');
+        menuTrigger.classList.remove('active');
+      }
+    });
+    
+    // About Section Toggle
+    aboutLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      aboutContent.classList.add('active');
+      menuOverlay.classList.remove('active');
+      menuTrigger.classList.remove('active');
+    });
+    
+    document.addEventListener('click', (e) => {
+      if (!aboutContent.contains(e.target) && !e.target.classList.contains('about-link')) {
+        aboutContent.classList.remove('active');
+      }
+    });
+    
+    // Fade In on Scroll for Photos
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, {
+      threshold: 0.1,
+      rootMargin: '0px 0px -100px 0px'
+    });
+    
+    document.querySelectorAll('.photo-item').forEach(item => {
+      observer.observe(item);
+    });
+    
+    // Back to Top Button
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 500) {
+        backToTop.classList.add('visible');
+      } else {
+        backToTop.classList.remove('visible');
+      }
+    });
+    
+    backToTop.addEventListener('click', () => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    });
+  </script>
 </body>
 </html>
