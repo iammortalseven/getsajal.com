@@ -124,9 +124,9 @@
         /* About Section */
         .about-content {
             position: fixed;
-            right: 5%;
+            left: 50%;
             top: 50%;
-            transform: translateY(-50%);
+            transform: translate(-50%, -50%);
             width: 90%;
             max-width: 600px;
             padding: 30px;
@@ -136,7 +136,6 @@
             visibility: hidden;
             transition: all 0.3s ease-in-out;
             z-index: 1001;
-            text-align: right;
         }
 
         .about-content.active {
@@ -216,43 +215,45 @@
 
         @media (max-width: 768px) {
             .header {
-                top: 15px;
-                right: 15px;
+                top: 8px;
+                right: 8px;
+                padding: 8px;
             }
             
             .menu-overlay {
                 padding: 100px 8px;
-                justify-content: center;
+                justify-content: right;
             }
             
             .menu-content {
-                align-items: center;
+                align-items: right;
                 margin-right: 0;
-                text-align: center;
+                text-align: right;
             }
             
             .menu-content a {
-                text-align: center;
+                text-align: right;
                 width: auto;
                 padding: 10px 8px;
             }
             
             .instagram-link {
-                justify-content: center;
+                justify-content: right;
             }
             
             .about-content {
-                position: static;
-                width: calc(100% - 16px);
-                margin: 30px 8px;
-                padding: 20px;
+                position: fixed;
+                top: 100px;
                 transform: none;
+                width: calc(100% - 16px);
+                margin: 0 8px;
+                padding: 20px;
                 text-align: center;
             }
             
             .grid {
                 grid-template-columns: 1fr;
-                padding: 70px 8px 100px;
+                padding: 75px 8px 20px;
                 width: calc(100% - 16px);
             }
 
@@ -289,7 +290,7 @@
 
     <div class="about-content">
         <h2>About Me</h2>
-        <p>I am a passionate hobbyist who loves photography. I love doing portrait shoots and event photography.</p>
+        <p>Add your about text here. Describe your photography style, experience, and artistic vision.</p>
     </div>
 
     <div class="grid">
