@@ -172,11 +172,6 @@
       padding: var(--small-gap);
       width: calc(100% - (2 * var(--mobile-margin)));
       margin: 0 auto;
-      visibility: hidden;
-    }
-    
-    .grid.initialized {
-      visibility: visible;
     }
     
     .photo-item {
@@ -277,9 +272,9 @@
   
   <div class="menu-overlay" role="dialog" aria-modal="true">
     <nav class="menu-content">
-      <a href="#" class="about-link">About me</a>
+      <a href="#" class="about-link">About</a>
       <a href="#contact">Contact</a>
-      <a href="https://instagram.com/getsajal" target="_blank" class="instagram-link">
+      <a href="https://instagram.com/yourusername" target="_blank" class="instagram-link">
         <i class="fab fa-instagram" aria-hidden="true"></i>
         Instagram
       </a>
@@ -369,7 +364,6 @@
           const rowSpan = Math.ceil((img.offsetHeight + gap) / (1 + gap));
           item.style.gridRowEnd = `span ${rowSpan}`;
         }
-        grid.classList.add('initialized');
       });
     }
     
@@ -406,11 +400,13 @@
       }
     });
     
-    // Fade In on Scroll for Photos
+    // Fade In on Scroll for Photos with a slight delay for smoother animation
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
+          setTimeout(() => {
+            entry.target.classList.add('visible');
+          }, 100); // 100ms delay before fading in
         }
       });
     }, {
