@@ -178,6 +178,8 @@
       opacity: 0;
       transform: translateY(20px);
       transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+      /* Hint to browser for smoother animation */
+      will-change: opacity, transform;
     }
     
     .photo-item.visible {
@@ -265,7 +267,7 @@
 <body>
   <header class="header">
     <a href="#" class="menu-trigger" aria-label="Open Menu">
-      <span class="menu-text">More</span>
+      <span class="menu-text">Sajal</span>
       <span class="close-icon" aria-hidden="true">×</span>
     </a>
   </header>
@@ -288,44 +290,71 @@
   
   <main>
     <section class="grid">
+      <!-- Example of a responsive image using srcset and sizes -->
       <article class="photo-item">
-        <img src="images/photo-1.webp" alt="Project 1" loading="lazy">
+        <img src="images/photo-1.webp" alt="Project 1" loading="lazy"
+             srcset="images/photo-1-400.webp 400w, images/photo-1-800.webp 800w, images/photo-1.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
       <article class="photo-item">
-        <img src="images/photo-2.webp" alt="Project 2" loading="lazy">
+        <img src="images/photo-2.webp" alt="Project 2" loading="lazy"
+             srcset="images/photo-2-400.webp 400w, images/photo-2-800.webp 800w, images/photo-2.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
       <article class="photo-item">
-        <img src="images/photo-3.webp" alt="Project 3" loading="lazy">
+        <img src="images/photo-3.webp" alt="Project 3" loading="lazy"
+             srcset="images/photo-3-400.webp 400w, images/photo-3-800.webp 800w, images/photo-3.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
       <article class="photo-item">
-        <img src="images/photo-4.webp" alt="Project 4" loading="lazy">
+        <img src="images/photo-4.webp" alt="Project 4" loading="lazy"
+             srcset="images/photo-4-400.webp 400w, images/photo-4-800.webp 800w, images/photo-4.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
       <article class="photo-item">
-        <img src="images/photo-5.webp" alt="Project 5" loading="lazy">
+        <img src="images/photo-5.webp" alt="Project 5" loading="lazy"
+             srcset="images/photo-5-400.webp 400w, images/photo-5-800.webp 800w, images/photo-5.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
       <article class="photo-item">
-        <img src="images/photo-6.webp" alt="Project 6" loading="lazy">
+        <img src="images/photo-6.webp" alt="Project 6" loading="lazy"
+             srcset="images/photo-6-400.webp 400w, images/photo-6-800.webp 800w, images/photo-6.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
       <article class="photo-item">
-        <img src="images/photo-7.webp" alt="Project 7" loading="lazy">
+        <img src="images/photo-7.webp" alt="Project 7" loading="lazy"
+             srcset="images/photo-7-400.webp 400w, images/photo-7-800.webp 800w, images/photo-7.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
       <article class="photo-item">
-        <img src="images/photo-8.webp" alt="Project 8" loading="lazy">
+        <img src="images/photo-8.webp" alt="Project 8" loading="lazy"
+             srcset="images/photo-8-400.webp 400w, images/photo-8-800.webp 800w, images/photo-8.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
       <article class="photo-item">
-        <img src="images/photo-9.webp" alt="Project 9" loading="lazy">
+        <img src="images/photo-9.webp" alt="Project 9" loading="lazy"
+             srcset="images/photo-9-400.webp 400w, images/photo-9-800.webp 800w, images/photo-9.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
       <article class="photo-item">
-        <img src="images/photo-10.webp" alt="Project 10" loading="lazy">
+        <img src="images/photo-10.webp" alt="Project 10" loading="lazy"
+             srcset="images/photo-10-400.webp 400w, images/photo-10-800.webp 800w, images/photo-10.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
       <article class="photo-item">
-        <img src="images/photo-13.webp" alt="Project 13" loading="lazy">
+        <img src="images/photo-13.webp" alt="Project 13" loading="lazy"
+             srcset="images/photo-11-400.webp 400w, images/photo-13-800.webp 800w, images/photo-13.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
       <article class="photo-item">
-        <img src="images/photo-12.webp" alt="Project 12" loading="lazy">
+        <img src="images/photo-12.webp" alt="Project 12" loading="lazy"
+             srcset="images/photo-12-400.webp 400w, images/photo-12-800.webp 800w, images/photo-12.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
       <article class="photo-item">
-        <img src="images/photo-14.webp" alt="Project 14" loading="lazy">
+        <img src="images/photo-14.webp" alt="Project 14" loading="lazy"
+             srcset="images/photo-12-400.webp 400w, images/photo-14-800.webp 800w, images/photo-14.webp 1200w"
+             sizes="(max-width: 768px) 100vw, 50vw">
       </article>
     </section>
   </main>
