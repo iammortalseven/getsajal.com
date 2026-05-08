@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
+import Beams from "./components/Beams";
 
 const photos = [
   { id: 1, src: "/images/photo-1.webp", alt: "Project 1" },
@@ -167,6 +168,18 @@ function App() {
 
   return (
     <>
+      <div className="site-background">
+        <Beams
+          beamWidth={1.1}
+          beamHeight={25}
+          beamNumber={34}
+          lightColor="#ffffff"
+          speed={6.6}
+          noiseIntensity={2.45}
+          scale={0.21}
+          rotation={36}
+        />
+      </div>
       <header className="header">
         <a
           href="#"
