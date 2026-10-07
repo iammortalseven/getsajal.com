@@ -64,9 +64,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // -----------------------------
 
     newEventButton.addEventListener('click', function () {
-
         openNewEvent(new Date());
-
     });
 
 
@@ -83,14 +81,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         deleteButton.classList.add('hidden');
 
-        const dateObject = new Date(date);
-
-        eventDate.value = formatDate(dateObject);
+        eventDate.value = formatDate(date);
 
         allDay.checked = true;
 
         startTime.value = '';
         endTime.value = '';
+
+        updateTimeFields();
 
         modal.classList.remove('hidden');
 
@@ -113,14 +111,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
         allDay.checked = event.allDay;
 
-        if (!event.allDay) {
+        if (event.allDay) {
+
+            startTime.value = '';
+            endTime.value = '';
+
+        } else {
 
             startTime.value = formatTime(event.start);
 
             if (event.end) {
                 endTime.value = formatTime(event.end);
+            } else {
+                endTime.value = '';
             }
-
         }
 
         eventLocation.value =
@@ -133,9 +137,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
         deleteButton.classList.remove('hidden');
 
+        updateTimeFields();
+
         modal.classList.remove('hidden');
 
         eventTitle.focus();
+    }
+
+
+    // -----------------------------
+    // All-day toggle
+    // -----------------------------
+
+    allDay.addEventListener('change', function () {
+
+        if (allDay.checked) {
+
+            startTime.value = '';
+            endTime.value = '';
+
+        }
+
+        updateTimeFields();
+
+    });
+
+
+    function updateTimeFields() {
+
+        startTime.disabled = allDay.checked;
+        endTime.disabled = allDay.checked;
+
     }
 
 
@@ -155,20 +187,53 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const date = eventDate.value;
 
+        if (!date) {
+            return;
+        }
+
         let start;
         let end = null;
 
+
+        // All-day event
         if (allDay.checked) {
 
             start = date;
 
-        } else {
+        }
+
+
+        // Timed event
+        else {
+
+            if (!startTime.value) {
+
+                alert('Please enter a start time.');
+
+                return;
+
+            }
 
             start = date + 'T' + startTime.value;
 
+
             if (endTime.value) {
+
                 end = date + 'T' + endTime.value;
+
+
+                // Prevent accidentally creating an end
+                // time earlier than the start time.
+                if (endTime.value <= startTime.value) {
+
+                    alert('End time must be later than start time.');
+
+                    return;
+
+                }
+
             }
+
         }
 
 
@@ -179,17 +244,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (existingEvent) {
 
-            existingEvent.setProp('title', title);
+            existingEvent.setProp(
+                'title',
+                title
+            );
 
-            existingEvent.setAllDay(allDay.checked);
+            existingEvent.setAllDay(
+                allDay.checked
+            );
 
             existingEvent.setStart(start);
 
-            if (end) {
-                existingEvent.setEnd(end);
-            } else {
-                existingEvent.setEnd(null);
-            }
+            existingEvent.setEnd(end);
+
 
             existingEvent.setExtendedProp(
                 'location',
@@ -201,7 +268,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 eventNotes.value.trim()
             );
 
-        } else {
+        }
+
+
+        else {
 
             calendar.addEvent({
 
@@ -216,8 +286,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 allDay: allDay.checked,
 
                 extendedProps: {
-                    location: eventLocation.value.trim(),
-                    notes: eventNotes.value.trim()
+
+                    location:
+                        eventLocation.value.trim(),
+
+                    notes:
+                        eventNotes.value.trim()
+
                 }
 
             });
@@ -267,9 +342,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // Modal controls
     // -----------------------------
 
-    closeModal.addEventListener('click', closeEventModal);
+    closeModal.addEventListener(
+        'click',
+        closeEventModal
+    );
 
-    cancelButton.addEventListener('click', closeEventModal);
+    cancelButton.addEventListener(
+        'click',
+        closeEventModal
+    );
 
 
     modal.addEventListener('click', function (e) {
@@ -289,7 +370,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     // -----------------------------
-    // Save events to localStorage
+    // Save to localStorage
     // -----------------------------
 
     function saveEvents() {
@@ -302,9 +383,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 title: event.title,
 
-                start: event.startStr,
+                start: event.start
+                    ? event.start.toISOString()
+                    : null,
 
-                end: event.endStr || null,
+                end: event.end
+                    ? event.end.toISOString()
+                    : null,
 
                 allDay: event.allDay,
 
