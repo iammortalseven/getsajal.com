@@ -24,9 +24,15 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.getItem('myCalendarEvents') || '[]'
     );
 
+
+    // -----------------------------
+    // Calendar
+    // -----------------------------
+
     const calendar = new FullCalendar.Calendar(calendarEl, {
 
-        initialView: 'dayGridMonth',
+        initialView:
+            localStorage.getItem('calendarView') || 'dayGridMonth',
 
         headerToolbar: {
             left: 'prev,next today',
@@ -34,57 +40,155 @@ document.addEventListener('DOMContentLoaded', function () {
             right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
 
-       selectable: true,
-selectMirror: true,
-editable: true,
-
-dateClick: function (info) {
-    openNewEvent(info.date);
-},
-
-select: function (info) {
-    openSelectedEvent(info);
-    calendar.unselect();
-},
+        selectable: true,
+        selectMirror: true,
+        editable: true,
 
         events: savedEvents,
 
+
+        // Remember the current calendar view
+        viewDidMount: function (info) {
+
+            localStorage.setItem(
+                'calendarView',
+                info.view.type
+            );
+
+        },
+
+
+        // Click an individual date
         dateClick: function (info) {
+
             openNewEvent(info.date);
+
         },
 
+
+        // Drag across a time range
+        select: function (info) {
+
+            openSelectedEvent(info);
+
+            calendar.unselect();
+
+        },
+
+
+        // Click existing event
         eventClick: function (info) {
+
             openEditEvent(info.event);
+
         },
 
+
+        // Event moved
         eventDrop: function () {
+
             saveEvents();
+
         },
 
+
+        // Event duration changed
         eventResize: function () {
+
             saveEvents();
+
         }
+
     });
+
 
     calendar.render();
 
 
     // -----------------------------
-    // New event
+    // New event button
     // -----------------------------
 
     newEventButton.addEventListener('click', function () {
+
         openNewEvent(new Date());
+
     });
 
+
+    // -----------------------------
+    // Create event from selection
+    // -----------------------------
+
+    function openSelectedEvent(info) {
+
+        eventForm.reset();
+
+        eventId.value = '';
+
+        modalTitle.textContent = 'New event';
+
+        deleteButton.classList.add('hidden');
+
+        eventTitle.value = '';
+
+        eventLocation.value = '';
+
+        eventNotes.value = '';
+
+        eventDate.value = formatDate(info.start);
+
+
+        if (info.allDay) {
+
+            allDay.checked = true;
+
+            startTime.value = '';
+
+            endTime.value = '';
+
+        } else {
+
+            allDay.checked = false;
+
+            startTime.value = formatTime(info.start);
+
+            if (info.end) {
+
+                endTime.value = formatTime(info.end);
+
+            } else {
+
+                endTime.value = '';
+
+            }
+
+        }
+
+
+        updateTimeFields();
+
+        modal.classList.remove('hidden');
+
+        eventTitle.focus();
+
+    }
+
+
+    // -----------------------------
+    // Create new event
+    // -----------------------------
 
     function openNewEvent(date) {
 
         eventForm.reset();
 
         eventId.value = '';
+
         eventTitle.value = '';
+
         eventLocation.value = '';
+
         eventNotes.value = '';
 
         modalTitle.textContent = 'New event';
@@ -96,6 +200,7 @@ select: function (info) {
         allDay.checked = true;
 
         startTime.value = '';
+
         endTime.value = '';
 
         updateTimeFields();
@@ -103,11 +208,12 @@ select: function (info) {
         modal.classList.remove('hidden');
 
         eventTitle.focus();
+
     }
 
 
     // -----------------------------
-    // Edit event
+    // Edit existing event
     // -----------------------------
 
     function openEditEvent(event) {
@@ -115,15 +221,18 @@ select: function (info) {
         eventForm.reset();
 
         eventId.value = event.id || '';
+
         eventTitle.value = event.title || '';
 
         eventDate.value = formatDate(event.start);
 
         allDay.checked = event.allDay;
 
+
         if (event.allDay) {
 
             startTime.value = '';
+
             endTime.value = '';
 
         } else {
@@ -131,17 +240,24 @@ select: function (info) {
             startTime.value = formatTime(event.start);
 
             if (event.end) {
+
                 endTime.value = formatTime(event.end);
+
             } else {
+
                 endTime.value = '';
+
             }
+
         }
+
 
         eventLocation.value =
             event.extendedProps.location || '';
 
         eventNotes.value =
             event.extendedProps.notes || '';
+
 
         modalTitle.textContent = 'Edit event';
 
@@ -152,6 +268,7 @@ select: function (info) {
         modal.classList.remove('hidden');
 
         eventTitle.focus();
+
     }
 
 
@@ -164,6 +281,7 @@ select: function (info) {
         if (allDay.checked) {
 
             startTime.value = '';
+
             endTime.value = '';
 
         }
@@ -176,6 +294,7 @@ select: function (info) {
     function updateTimeFields() {
 
         startTime.disabled = allDay.checked;
+
         endTime.disabled = allDay.checked;
 
     }
@@ -189,17 +308,20 @@ select: function (info) {
 
         e.preventDefault();
 
+
         const title = eventTitle.value.trim();
 
         if (!title) {
             return;
         }
 
+
         const date = eventDate.value;
 
         if (!date) {
             return;
         }
+
 
         let start;
         let end = null;
@@ -224,6 +346,7 @@ select: function (info) {
 
             }
 
+
             start = date + 'T' + startTime.value;
 
 
@@ -232,11 +355,11 @@ select: function (info) {
                 end = date + 'T' + endTime.value;
 
 
-                // Prevent accidentally creating an end
-                // time earlier than the start time.
                 if (endTime.value <= startTime.value) {
 
-                    alert('End time must be later than start time.');
+                    alert(
+                        'End time must be later than start time.'
+                    );
 
                     return;
 
@@ -252,6 +375,7 @@ select: function (info) {
             : null;
 
 
+        // Update existing event
         if (existingEvent) {
 
             existingEvent.setProp(
@@ -281,6 +405,7 @@ select: function (info) {
         }
 
 
+        // Create new event
         else {
 
             calendar.addEvent({
@@ -329,11 +454,13 @@ select: function (info) {
             return;
         }
 
+
         const event = calendar.getEventById(id);
 
         if (!event) {
             return;
         }
+
 
         if (confirm('Delete this event?')) {
 
@@ -349,13 +476,14 @@ select: function (info) {
 
 
     // -----------------------------
-    // Modal controls
+    // Close modal
     // -----------------------------
 
     closeModal.addEventListener(
         'click',
         closeEventModal
     );
+
 
     cancelButton.addEventListener(
         'click',
@@ -366,7 +494,9 @@ select: function (info) {
     modal.addEventListener('click', function (e) {
 
         if (e.target === modal) {
+
             closeEventModal();
+
         }
 
     });
@@ -380,7 +510,7 @@ select: function (info) {
 
 
     // -----------------------------
-    // Save to localStorage
+    // Save events
     // -----------------------------
 
     function saveEvents() {
@@ -427,7 +557,7 @@ select: function (info) {
 
 
     // -----------------------------
-    // Helpers
+    // Date helper
     // -----------------------------
 
     function formatDate(date) {
@@ -446,6 +576,10 @@ select: function (info) {
 
     }
 
+
+    // -----------------------------
+    // Time helper
+    // -----------------------------
 
     function formatTime(date) {
 
