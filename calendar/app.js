@@ -1,3 +1,4 @@
+```javascript
 document.addEventListener('DOMContentLoaded', function () {
 
     const calendarEl = document.getElementById('calendar');
@@ -8,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const eventId = document.getElementById('eventId');
     const eventTitle = document.getElementById('eventTitle');
+    const eventCategory = document.getElementById('eventCategory');
     const eventDate = document.getElementById('eventDate');
     const startTime = document.getElementById('startTime');
     const endTime = document.getElementById('endTime');
@@ -19,6 +21,40 @@ document.addEventListener('DOMContentLoaded', function () {
     const closeModal = document.getElementById('closeModal');
     const cancelButton = document.getElementById('cancelButton');
     const deleteButton = document.getElementById('deleteButton');
+
+
+    // -----------------------------
+    // Category colours
+    // -----------------------------
+
+    const categoryColors = {
+
+        personal: {
+            background: '#3b82f6',
+            text: '#ffffff'
+        },
+
+        work: {
+            background: '#22c55e',
+            text: '#ffffff'
+        },
+
+        family: {
+            background: '#eab308',
+            text: '#111111'
+        },
+
+        photography: {
+            background: '#8b5cf6',
+            text: '#ffffff'
+        },
+
+        important: {
+            background: '#ef4444',
+            text: '#ffffff'
+        }
+
+    };
 
 
     // -----------------------------
@@ -41,103 +77,158 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     // -----------------------------
+    // Apply category colours
+    // -----------------------------
+
+    savedEvents = savedEvents.map(function (event) {
+
+        const category =
+            event.extendedProps &&
+            event.extendedProps.category
+                ? event.extendedProps.category
+                : 'personal';
+
+        const colors =
+            categoryColors[category] ||
+            categoryColors.personal;
+
+        return {
+
+            ...event,
+
+            backgroundColor:
+                colors.background,
+
+            borderColor:
+                colors.background,
+
+            textColor:
+                colors.text,
+
+            extendedProps: {
+
+                ...(event.extendedProps || {}),
+
+                category:
+                    category
+
+            }
+
+        };
+
+    });
+
+
+    // -----------------------------
     // Calendar
     // -----------------------------
 
-    const calendar = new FullCalendar.Calendar(calendarEl, {
+    const calendar = new FullCalendar.Calendar(
+        calendarEl,
+        {
 
-        initialView:
-            localStorage.getItem('calendarView') ||
-            'dayGridMonth',
+            initialView:
+                localStorage.getItem('calendarView') ||
+                'dayGridMonth',
 
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
-        },
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right:
+                    'dayGridMonth,timeGridWeek,timeGridDay'
+            },
 
-        selectable: true,
+            selectable: true,
 
-        editable: true,
+            editable: true,
 
-        selectMirror: true,
+            selectMirror: true,
 
-        events: savedEvents,
-
-
-        // Remember current view
-        viewDidMount: function (info) {
-
-            localStorage.setItem(
-                'calendarView',
-                info.view.type
-            );
-
-        },
+            events: savedEvents,
 
 
-        // Click a date
-        dateClick: function (info) {
+            // Remember current view
+            viewDidMount: function (info) {
 
-            openNewEvent(
-                info.date,
-                info.allDay
-            );
+                localStorage.setItem(
+                    'calendarView',
+                    info.view.type
+                );
 
-        },
-
-
-        // Drag across calendar
-        select: function (info) {
-
-            // Copy the selection before doing anything else.
-            const selection = {
-                start: new Date(info.start),
-                end: info.end
-                    ? new Date(info.end)
-                    : null,
-                allDay: info.allDay
-            };
+            },
 
 
-            // Clear FullCalendar's selection first.
-            calendar.unselect();
+            // Click a date
+            dateClick: function (info) {
+
+                openNewEvent(
+                    info.date,
+                    info.allDay
+                );
+
+            },
 
 
-            // Open the form on the next event loop.
-            setTimeout(function () {
+            // Drag across calendar
+            select: function (info) {
 
-                openSelectedEvent(selection);
+                const selection = {
 
-            }, 0);
+                    start:
+                        new Date(info.start),
 
-        },
+                    end:
+                        info.end
+                            ? new Date(info.end)
+                            : null,
 
+                    allDay:
+                        info.allDay
 
-        // Click existing event
-        eventClick: function (info) {
-
-            openEditEvent(info.event);
-
-        },
-
-
-        // Drag event
-        eventDrop: function () {
-
-            saveEvents();
-
-        },
+                };
 
 
-        // Resize event
-        eventResize: function () {
+                calendar.unselect();
 
-            saveEvents();
+
+                setTimeout(function () {
+
+                    openSelectedEvent(
+                        selection
+                    );
+
+                }, 0);
+
+            },
+
+
+            // Click existing event
+            eventClick: function (info) {
+
+                openEditEvent(
+                    info.event
+                );
+
+            },
+
+
+            // Drag event
+            eventDrop: function () {
+
+                saveEvents();
+
+            },
+
+
+            // Resize event
+            eventResize: function () {
+
+                saveEvents();
+
+            }
 
         }
-
-    });
+    );
 
 
     calendar.render();
@@ -151,14 +242,17 @@ document.addEventListener('DOMContentLoaded', function () {
         'click',
         function () {
 
-            openNewEvent(new Date(), true);
+            openNewEvent(
+                new Date(),
+                true
+            );
 
         }
     );
 
 
     // -----------------------------
-    // New event from date selection
+    // New event from time selection
     // -----------------------------
 
     function openSelectedEvent(selection) {
@@ -167,12 +261,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         eventId.value = '';
 
-        modalTitle.textContent = 'New event';
+        modalTitle.textContent =
+            'New event';
 
-        deleteButton.classList.add('hidden');
+        deleteButton.classList.add(
+            'hidden'
+        );
 
 
         eventTitle.value = '';
+
+        eventCategory.value =
+            'personal';
 
         eventLocation.value = '';
 
@@ -180,7 +280,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
         eventDate.value =
-            formatDate(selection.start);
+            formatDate(
+                selection.start
+            );
 
 
         if (selection.allDay) {
@@ -196,13 +298,17 @@ document.addEventListener('DOMContentLoaded', function () {
             allDay.checked = false;
 
             startTime.value =
-                formatTime(selection.start);
+                formatTime(
+                    selection.start
+                );
 
 
             if (selection.end) {
 
                 endTime.value =
-                    formatTime(selection.end);
+                    formatTime(
+                        selection.end
+                    );
 
             } else {
 
@@ -216,7 +322,9 @@ document.addEventListener('DOMContentLoaded', function () {
         updateTimeFields();
 
 
-        modal.classList.remove('hidden');
+        modal.classList.remove(
+            'hidden'
+        );
 
         eventTitle.focus();
 
@@ -235,14 +343,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
         eventTitle.value = '';
 
+        eventCategory.value =
+            'personal';
+
         eventLocation.value = '';
 
         eventNotes.value = '';
 
 
-        modalTitle.textContent = 'New event';
+        modalTitle.textContent =
+            'New event';
 
-        deleteButton.classList.add('hidden');
+        deleteButton.classList.add(
+            'hidden'
+        );
 
 
         eventDate.value =
@@ -261,7 +375,9 @@ document.addEventListener('DOMContentLoaded', function () {
         updateTimeFields();
 
 
-        modal.classList.remove('hidden');
+        modal.classList.remove(
+            'hidden'
+        );
 
         eventTitle.focus();
 
@@ -285,8 +401,21 @@ document.addEventListener('DOMContentLoaded', function () {
             event.title || '';
 
 
+        const category =
+            event.extendedProps &&
+            event.extendedProps.category
+                ? event.extendedProps.category
+                : 'personal';
+
+
+        eventCategory.value =
+            category;
+
+
         eventDate.value =
-            formatDate(event.start);
+            formatDate(
+                event.start
+            );
 
 
         allDay.checked =
@@ -302,13 +431,17 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
 
             startTime.value =
-                formatTime(event.start);
+                formatTime(
+                    event.start
+                );
 
 
             if (event.end) {
 
                 endTime.value =
-                    formatTime(event.end);
+                    formatTime(
+                        event.end
+                    );
 
             } else {
 
@@ -347,6 +480,22 @@ document.addEventListener('DOMContentLoaded', function () {
         eventTitle.focus();
 
     }
+
+
+    // -----------------------------
+    // Category change
+    // -----------------------------
+
+    eventCategory.addEventListener(
+        'change',
+        function () {
+
+            // Nothing needs to happen here.
+            // The colour is applied when the
+            // event is saved.
+
+        }
+    );
 
 
     // -----------------------------
@@ -415,11 +564,25 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
 
+            const category =
+                eventCategory.value ||
+                'personal';
+
+
+            const colors =
+                categoryColors[category] ||
+                categoryColors.personal;
+
+
             let start;
+
             let end = null;
 
 
+            // -------------------------
             // All-day
+            // -------------------------
+
             if (allDay.checked) {
 
                 start = date;
@@ -427,7 +590,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
 
+            // -------------------------
             // Timed
+            // -------------------------
+
             else {
 
                 if (!startTime.value) {
@@ -481,7 +647,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     : null;
 
 
-            // Update
+            // -------------------------
+            // Update existing event
+            // -------------------------
+
             if (existingEvent) {
 
                 existingEvent.setProp(
@@ -505,6 +674,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 );
 
 
+                existingEvent.setProp(
+                    'backgroundColor',
+                    colors.background
+                );
+
+
+                existingEvent.setProp(
+                    'borderColor',
+                    colors.background
+                );
+
+
+                existingEvent.setProp(
+                    'textColor',
+                    colors.text
+                );
+
+
+                existingEvent.setExtendedProp(
+                    'category',
+                    category
+                );
+
+
                 existingEvent.setExtendedProp(
                     'location',
                     eventLocation.value.trim()
@@ -519,7 +712,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
 
-            // Create
+            // -------------------------
+            // Create new event
+            // -------------------------
+
             else {
 
                 calendar.addEvent({
@@ -539,7 +735,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     allDay:
                         allDay.checked,
 
+                    backgroundColor:
+                        colors.background,
+
+                    borderColor:
+                        colors.background,
+
+                    textColor:
+                        colors.text,
+
                     extendedProps: {
+
+                        category:
+                            category,
 
                         location:
                             eventLocation.value.trim(),
@@ -680,13 +888,28 @@ document.addEventListener('DOMContentLoaded', function () {
                         allDay:
                             event.allDay,
 
+                        backgroundColor:
+                            event.backgroundColor,
+
+                        borderColor:
+                            event.borderColor,
+
+                        textColor:
+                            event.textColor,
+
                         extendedProps: {
 
+                            category:
+                                event.extendedProps.category ||
+                                'personal',
+
                             location:
-                                event.extendedProps.location || '',
+                                event.extendedProps.location ||
+                                '',
 
                             notes:
-                                event.extendedProps.notes || ''
+                                event.extendedProps.notes ||
+                                ''
 
                         }
 
@@ -759,3 +982,4 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
 });
+```
