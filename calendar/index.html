@@ -17,12 +17,128 @@
 <body>
 
     <div class="calendar-container">
-        <h1>My Calendar</h1>
+
+        <div class="calendar-header">
+            <div>
+                <h1>My Calendar</h1>
+                <p>Plan your time</p>
+            </div>
+
+            <button id="newEventButton" class="new-event-button">
+                + New event
+            </button>
+        </div>
+
         <div id="calendar"></div>
+
     </div>
 
+
+    <!-- Event modal -->
+
+    <div id="eventModal" class="modal hidden">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h2 id="modalTitle">New event</h2>
+                <button id="closeModal" class="close-button">&times;</button>
+            </div>
+
+            <form id="eventForm">
+
+                <input type="hidden" id="eventId">
+
+                <label>
+                    Title
+                    <input
+                        type="text"
+                        id="eventTitle"
+                        placeholder="Event title"
+                        required
+                    >
+                </label>
+
+                <label class="checkbox-label">
+                    <input type="checkbox" id="allDay">
+                    All-day
+                </label>
+
+                <div class="form-row">
+
+                    <label>
+                        Date
+                        <input type="date" id="eventDate" required>
+                    </label>
+
+                    <label>
+                        Start
+                        <input type="time" id="startTime">
+                    </label>
+
+                    <label>
+                        End
+                        <input type="time" id="endTime">
+                    </label>
+
+                </div>
+
+                <label>
+                    Location
+                    <input
+                        type="text"
+                        id="eventLocation"
+                        placeholder="Optional"
+                    >
+                </label>
+
+                <label>
+                    Notes
+                    <textarea
+                        id="eventNotes"
+                        placeholder="Optional notes"
+                        rows="4"
+                    ></textarea>
+                </label>
+
+                <div class="modal-actions">
+
+                    <button
+                        type="button"
+                        id="deleteButton"
+                        class="delete-button hidden"
+                    >
+                        Delete
+                    </button>
+
+                    <div>
+                        <button
+                            type="button"
+                            id="cancelButton"
+                            class="secondary-button"
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            type="submit"
+                            class="save-button"
+                        >
+                            Save
+                        </button>
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js"></script>
-<script src="app.js"></script>
+    <script src="app.js"></script>
 
 </body>
 </html>
