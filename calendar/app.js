@@ -34,8 +34,18 @@ document.addEventListener('DOMContentLoaded', function () {
             right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
 
-        selectable: true,
-        editable: true,
+       selectable: true,
+selectMirror: true,
+editable: true,
+
+dateClick: function (info) {
+    openNewEvent(info.date);
+},
+
+select: function (info) {
+    openSelectedEvent(info);
+    calendar.unselect();
+},
 
         events: savedEvents,
 
