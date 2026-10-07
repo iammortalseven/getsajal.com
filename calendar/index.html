@@ -1,144 +1,231 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>My Calendar</title>
+```
+<title>My Calendar</title>
 
-    <link
-        href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.css"
-        rel="stylesheet"
-    >
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.css"
+>
 
-    <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css">
+```
+
 </head>
 
 <body>
 
-    <div class="calendar-container">
+```
+<div class="calendar-container">
 
-        <div class="calendar-header">
-            <div>
-                <h1>My Calendar</h1>
-                <p>Plan your time</p>
-            </div>
+    <div class="calendar-header">
 
-            <button id="newEventButton" class="new-event-button">
-                + New event
-            </button>
+        <div>
+            <h1>My Calendar</h1>
+            <p>Plan your time</p>
         </div>
 
-        <div id="calendar"></div>
+        <button
+            id="newEventButton"
+            class="new-event-button"
+            type="button"
+        >
+            + New event
+        </button>
 
     </div>
 
+    <div id="calendar"></div>
 
-    <!-- Event modal -->
+</div>
 
-    <div id="eventModal" class="modal hidden">
 
-        <div class="modal-content">
+<!-- Event Modal -->
 
-            <div class="modal-header">
-                <h2 id="modalTitle">New event</h2>
-                <button id="closeModal" class="close-button">&times;</button>
+<div
+    id="eventModal"
+    class="modal hidden"
+>
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2 id="modalTitle">
+                New event
+            </h2>
+
+            <button
+                id="closeModal"
+                class="close-button"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <form id="eventForm">
+
+            <input
+                type="hidden"
+                id="eventId"
+            >
+
+
+            <div class="form-group">
+
+                <label for="eventTitle">
+                    Title
+                </label>
+
+                <input
+                    type="text"
+                    id="eventTitle"
+                    required
+                    autocomplete="off"
+                >
+
             </div>
 
-            <form id="eventForm">
 
-                <input type="hidden" id="eventId">
+            <div class="form-group">
 
                 <label>
-                    Title
                     <input
-                        type="text"
-                        id="eventTitle"
-                        placeholder="Event title"
-                        required
+                        type="checkbox"
+                        id="allDay"
                     >
+                    All day
                 </label>
 
-                <label class="checkbox-label">
-                    <input type="checkbox" id="allDay">
-                    All-day
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="eventDate">
+                    Date
                 </label>
 
-                <div class="form-row">
+                <input
+                    type="date"
+                    id="eventDate"
+                    required
+                >
 
-                    <label>
-                        Date
-                        <input type="date" id="eventDate" required>
-                    </label>
+            </div>
 
-                    <label>
+
+            <div class="form-row">
+
+                <div class="form-group">
+
+                    <label for="startTime">
                         Start
-                        <input type="time" id="startTime">
                     </label>
 
-                    <label>
-                        End
-                        <input type="time" id="endTime">
-                    </label>
+                    <input
+                        type="time"
+                        id="startTime"
+                    >
 
                 </div>
 
-                <label>
-                    Location
+
+                <div class="form-group">
+
+                    <label for="endTime">
+                        End
+                    </label>
+
                     <input
-                        type="text"
-                        id="eventLocation"
-                        placeholder="Optional"
+                        type="time"
+                        id="endTime"
                     >
+
+                </div>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="eventLocation">
+                    Location
                 </label>
 
-                <label>
+                <input
+                    type="text"
+                    id="eventLocation"
+                    autocomplete="off"
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="eventNotes">
                     Notes
-                    <textarea
-                        id="eventNotes"
-                        placeholder="Optional notes"
-                        rows="4"
-                    ></textarea>
                 </label>
 
-                <div class="modal-actions">
+                <textarea
+                    id="eventNotes"
+                    rows="4"
+                ></textarea>
+
+            </div>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    id="deleteButton"
+                    class="delete-button hidden"
+                >
+                    Delete
+                </button>
+
+                <div class="modal-actions-right">
 
                     <button
                         type="button"
-                        id="deleteButton"
-                        class="delete-button hidden"
+                        id="cancelButton"
+                        class="secondary-button"
                     >
-                        Delete
+                        Cancel
                     </button>
 
-                    <div>
-                        <button
-                            type="button"
-                            id="cancelButton"
-                            class="secondary-button"
-                        >
-                            Cancel
-                        </button>
-
-                        <button
-                            type="submit"
-                            class="save-button"
-                        >
-                            Save
-                        </button>
-                    </div>
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+                        Save
+                    </button>
 
                 </div>
 
-            </form>
+            </div>
 
-        </div>
+        </form>
 
     </div>
 
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js"></script>
-    <script src="app.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js"></script>
+
+<script src="app.js"></script>
+```
 
 </body>
 </html>
