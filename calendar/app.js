@@ -20,9 +20,24 @@ document.addEventListener('DOMContentLoaded', function () {
     const cancelButton = document.getElementById('cancelButton');
     const deleteButton = document.getElementById('deleteButton');
 
-    let savedEvents = JSON.parse(
-        localStorage.getItem('myCalendarEvents') || '[]'
-    );
+
+    // -----------------------------
+    // Load saved events
+    // -----------------------------
+
+    let savedEvents = [];
+
+    try {
+
+        savedEvents = JSON.parse(
+            localStorage.getItem('myCalendarEvents') || '[]'
+        );
+
+    } catch (error) {
+
+        savedEvents = [];
+
+    }
 
 
     // -----------------------------
@@ -32,7 +47,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const calendar = new FullCalendar.Calendar(calendarEl, {
 
         initialView:
-            localStorage.getItem('calendarView') || 'dayGridMonth',
+            localStorage.getItem('calendarView') ||
+            'dayGridMonth',
 
         headerToolbar: {
             left: 'prev,next today',
@@ -41,13 +57,15 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
         selectable: true,
-        selectMirror: true,
+
         editable: true,
+
+        selectMirror: true,
 
         events: savedEvents,
 
 
-        // Remember the current calendar view
+        // Remember current view
         viewDidMount: function (info) {
 
             localStorage.setItem(
@@ -58,20 +76,40 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
 
-        // Click an individual date
+        // Click a date
         dateClick: function (info) {
 
-            openNewEvent(info.date);
+            openNewEvent(
+                info.date,
+                info.allDay
+            );
 
         },
 
 
-        // Drag across a time range
+        // Drag across calendar
         select: function (info) {
 
-            openSelectedEvent(info);
+            // Copy the selection before doing anything else.
+            const selection = {
+                start: new Date(info.start),
+                end: info.end
+                    ? new Date(info.end)
+                    : null,
+                allDay: info.allDay
+            };
 
+
+            // Clear FullCalendar's selection first.
             calendar.unselect();
+
+
+            // Open the form on the next event loop.
+            setTimeout(function () {
+
+                openSelectedEvent(selection);
+
+            }, 0);
 
         },
 
@@ -84,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
 
-        // Event moved
+        // Drag event
         eventDrop: function () {
 
             saveEvents();
@@ -92,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
 
-        // Event duration changed
+        // Resize event
         eventResize: function () {
 
             saveEvents();
@@ -109,18 +147,21 @@ document.addEventListener('DOMContentLoaded', function () {
     // New event button
     // -----------------------------
 
-    newEventButton.addEventListener('click', function () {
+    newEventButton.addEventListener(
+        'click',
+        function () {
 
-        openNewEvent(new Date());
+            openNewEvent(new Date(), true);
 
-    });
+        }
+    );
 
 
     // -----------------------------
-    // Create event from selection
+    // New event from date selection
     // -----------------------------
 
-    function openSelectedEvent(info) {
+    function openSelectedEvent(selection) {
 
         eventForm.reset();
 
@@ -130,16 +171,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
         deleteButton.classList.add('hidden');
 
+
         eventTitle.value = '';
 
         eventLocation.value = '';
 
         eventNotes.value = '';
 
-        eventDate.value = formatDate(info.start);
+
+        eventDate.value =
+            formatDate(selection.start);
 
 
-        if (info.allDay) {
+        if (selection.allDay) {
 
             allDay.checked = true;
 
@@ -151,11 +195,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             allDay.checked = false;
 
-            startTime.value = formatTime(info.start);
+            startTime.value =
+                formatTime(selection.start);
 
-            if (info.end) {
 
-                endTime.value = formatTime(info.end);
+            if (selection.end) {
+
+                endTime.value =
+                    formatTime(selection.end);
 
             } else {
 
@@ -168,6 +215,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         updateTimeFields();
 
+
         modal.classList.remove('hidden');
 
         eventTitle.focus();
@@ -176,10 +224,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     // -----------------------------
-    // Create new event
+    // New event
     // -----------------------------
 
-    function openNewEvent(date) {
+    function openNewEvent(date, isAllDay) {
 
         eventForm.reset();
 
@@ -191,19 +239,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
         eventNotes.value = '';
 
+
         modalTitle.textContent = 'New event';
 
         deleteButton.classList.add('hidden');
 
-        eventDate.value = formatDate(date);
 
-        allDay.checked = true;
+        eventDate.value =
+            formatDate(date);
+
+
+        allDay.checked =
+            isAllDay !== false;
+
 
         startTime.value = '';
 
         endTime.value = '';
 
+
         updateTimeFields();
+
 
         modal.classList.remove('hidden');
 
@@ -213,20 +269,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     // -----------------------------
-    // Edit existing event
+    // Edit event
     // -----------------------------
 
     function openEditEvent(event) {
 
         eventForm.reset();
 
-        eventId.value = event.id || '';
 
-        eventTitle.value = event.title || '';
+        eventId.value =
+            event.id || '';
 
-        eventDate.value = formatDate(event.start);
 
-        allDay.checked = event.allDay;
+        eventTitle.value =
+            event.title || '';
+
+
+        eventDate.value =
+            formatDate(event.start);
+
+
+        allDay.checked =
+            event.allDay;
 
 
         if (event.allDay) {
@@ -237,11 +301,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         } else {
 
-            startTime.value = formatTime(event.start);
+            startTime.value =
+                formatTime(event.start);
+
 
             if (event.end) {
 
-                endTime.value = formatTime(event.end);
+                endTime.value =
+                    formatTime(event.end);
 
             } else {
 
@@ -255,17 +322,27 @@ document.addEventListener('DOMContentLoaded', function () {
         eventLocation.value =
             event.extendedProps.location || '';
 
+
         eventNotes.value =
             event.extendedProps.notes || '';
 
 
-        modalTitle.textContent = 'Edit event';
+        modalTitle.textContent =
+            'Edit event';
 
-        deleteButton.classList.remove('hidden');
+
+        deleteButton.classList.remove(
+            'hidden'
+        );
+
 
         updateTimeFields();
 
-        modal.classList.remove('hidden');
+
+        modal.classList.remove(
+            'hidden'
+        );
+
 
         eventTitle.focus();
 
@@ -276,26 +353,31 @@ document.addEventListener('DOMContentLoaded', function () {
     // All-day toggle
     // -----------------------------
 
-    allDay.addEventListener('change', function () {
+    allDay.addEventListener(
+        'change',
+        function () {
 
-        if (allDay.checked) {
+            if (allDay.checked) {
 
-            startTime.value = '';
+                startTime.value = '';
 
-            endTime.value = '';
+                endTime.value = '';
+
+            }
+
+            updateTimeFields();
 
         }
-
-        updateTimeFields();
-
-    });
+    );
 
 
     function updateTimeFields() {
 
-        startTime.disabled = allDay.checked;
+        startTime.disabled =
+            allDay.checked;
 
-        endTime.disabled = allDay.checked;
+        endTime.disabled =
+            allDay.checked;
 
     }
 
@@ -304,175 +386,228 @@ document.addEventListener('DOMContentLoaded', function () {
     // Save event
     // -----------------------------
 
-    eventForm.addEventListener('submit', function (e) {
+    eventForm.addEventListener(
+        'submit',
+        function (e) {
 
-        e.preventDefault();
-
-
-        const title = eventTitle.value.trim();
-
-        if (!title) {
-            return;
-        }
+            e.preventDefault();
 
 
-        const date = eventDate.value;
-
-        if (!date) {
-            return;
-        }
+            const title =
+                eventTitle.value.trim();
 
 
-        let start;
-        let end = null;
-
-
-        // All-day event
-        if (allDay.checked) {
-
-            start = date;
-
-        }
-
-
-        // Timed event
-        else {
-
-            if (!startTime.value) {
-
-                alert('Please enter a start time.');
+            if (!title) {
 
                 return;
 
             }
 
 
-            start = date + 'T' + startTime.value;
+            const date =
+                eventDate.value;
 
 
-            if (endTime.value) {
+            if (!date) {
 
-                end = date + 'T' + endTime.value;
+                return;
+
+            }
 
 
-                if (endTime.value <= startTime.value) {
+            let start;
+            let end = null;
+
+
+            // All-day
+            if (allDay.checked) {
+
+                start = date;
+
+            }
+
+
+            // Timed
+            else {
+
+                if (!startTime.value) {
 
                     alert(
-                        'End time must be later than start time.'
+                        'Please enter a start time.'
                     );
 
                     return;
 
                 }
 
-            }
 
-        }
-
-
-        const existingEvent = eventId.value
-            ? calendar.getEventById(eventId.value)
-            : null;
+                start =
+                    date +
+                    'T' +
+                    startTime.value;
 
 
-        // Update existing event
-        if (existingEvent) {
+                if (endTime.value) {
 
-            existingEvent.setProp(
-                'title',
-                title
-            );
+                    if (
+                        endTime.value <=
+                        startTime.value
+                    ) {
 
-            existingEvent.setAllDay(
-                allDay.checked
-            );
+                        alert(
+                            'End time must be later than start time.'
+                        );
 
-            existingEvent.setStart(start);
+                        return;
 
-            existingEvent.setEnd(end);
-
-
-            existingEvent.setExtendedProp(
-                'location',
-                eventLocation.value.trim()
-            );
-
-            existingEvent.setExtendedProp(
-                'notes',
-                eventNotes.value.trim()
-            );
-
-        }
+                    }
 
 
-        // Create new event
-        else {
-
-            calendar.addEvent({
-
-                id: Date.now().toString(),
-
-                title: title,
-
-                start: start,
-
-                end: end,
-
-                allDay: allDay.checked,
-
-                extendedProps: {
-
-                    location:
-                        eventLocation.value.trim(),
-
-                    notes:
-                        eventNotes.value.trim()
+                    end =
+                        date +
+                        'T' +
+                        endTime.value;
 
                 }
 
-            });
-
-        }
+            }
 
 
-        saveEvents();
-
-        closeEventModal();
-
-    });
-
-
-    // -----------------------------
-    // Delete event
-    // -----------------------------
-
-    deleteButton.addEventListener('click', function () {
-
-        const id = eventId.value;
-
-        if (!id) {
-            return;
-        }
+            const existingEvent =
+                eventId.value
+                    ? calendar.getEventById(
+                        eventId.value
+                    )
+                    : null;
 
 
-        const event = calendar.getEventById(id);
+            // Update
+            if (existingEvent) {
 
-        if (!event) {
-            return;
-        }
+                existingEvent.setProp(
+                    'title',
+                    title
+                );
 
 
-        if (confirm('Delete this event?')) {
+                existingEvent.setAllDay(
+                    allDay.checked
+                );
 
-            event.remove();
+
+                existingEvent.setStart(
+                    start
+                );
+
+
+                existingEvent.setEnd(
+                    end
+                );
+
+
+                existingEvent.setExtendedProp(
+                    'location',
+                    eventLocation.value.trim()
+                );
+
+
+                existingEvent.setExtendedProp(
+                    'notes',
+                    eventNotes.value.trim()
+                );
+
+            }
+
+
+            // Create
+            else {
+
+                calendar.addEvent({
+
+                    id:
+                        Date.now().toString(),
+
+                    title:
+                        title,
+
+                    start:
+                        start,
+
+                    end:
+                        end,
+
+                    allDay:
+                        allDay.checked,
+
+                    extendedProps: {
+
+                        location:
+                            eventLocation.value.trim(),
+
+                        notes:
+                            eventNotes.value.trim()
+
+                    }
+
+                });
+
+            }
+
 
             saveEvents();
 
             closeEventModal();
 
         }
+    );
 
-    });
+
+    // -----------------------------
+    // Delete
+    // -----------------------------
+
+    deleteButton.addEventListener(
+        'click',
+        function () {
+
+            const id =
+                eventId.value;
+
+
+            if (!id) {
+
+                return;
+
+            }
+
+
+            const event =
+                calendar.getEventById(id);
+
+
+            if (!event) {
+
+                return;
+
+            }
+
+
+            if (
+                confirm(
+                    'Delete this event?'
+                )
+            ) {
+
+                event.remove();
+
+                saveEvents();
+
+                closeEventModal();
+
+            }
+
+        }
+    );
 
 
     // -----------------------------
@@ -491,20 +626,25 @@ document.addEventListener('DOMContentLoaded', function () {
     );
 
 
-    modal.addEventListener('click', function (e) {
+    modal.addEventListener(
+        'click',
+        function (e) {
 
-        if (e.target === modal) {
+            if (e.target === modal) {
 
-            closeEventModal();
+                closeEventModal();
+
+            }
 
         }
-
-    });
+    );
 
 
     function closeEventModal() {
 
-        modal.classList.add('hidden');
+        modal.classList.add(
+            'hidden'
+        );
 
     }
 
@@ -515,37 +655,44 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function saveEvents() {
 
-        const events = calendar.getEvents().map(function (event) {
+        const events =
+            calendar.getEvents()
+                .map(function (event) {
 
-            return {
+                    return {
 
-                id: event.id,
+                        id:
+                            event.id,
 
-                title: event.title,
+                        title:
+                            event.title,
 
-                start: event.start
-                    ? event.start.toISOString()
-                    : null,
+                        start:
+                            event.start
+                                ? event.start.toISOString()
+                                : null,
 
-                end: event.end
-                    ? event.end.toISOString()
-                    : null,
+                        end:
+                            event.end
+                                ? event.end.toISOString()
+                                : null,
 
-                allDay: event.allDay,
+                        allDay:
+                            event.allDay,
 
-                extendedProps: {
+                        extendedProps: {
 
-                    location:
-                        event.extendedProps.location || '',
+                            location:
+                                event.extendedProps.location || '',
 
-                    notes:
-                        event.extendedProps.notes || ''
+                            notes:
+                                event.extendedProps.notes || ''
 
-                }
+                        }
 
-            };
+                    };
 
-        });
+                });
 
 
         localStorage.setItem(
@@ -557,41 +704,57 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     // -----------------------------
-    // Date helper
+    // Helpers
     // -----------------------------
 
     function formatDate(date) {
 
-        const year = date.getFullYear();
+        const year =
+            date.getFullYear();
 
-        const month = String(
-            date.getMonth() + 1
-        ).padStart(2, '0');
 
-        const day = String(
-            date.getDate()
-        ).padStart(2, '0');
+        const month =
+            String(
+                date.getMonth() + 1
+            ).padStart(2, '0');
 
-        return `${year}-${month}-${day}`;
+
+        const day =
+            String(
+                date.getDate()
+            ).padStart(2, '0');
+
+
+        return (
+            year +
+            '-' +
+            month +
+            '-' +
+            day
+        );
 
     }
 
 
-    // -----------------------------
-    // Time helper
-    // -----------------------------
-
     function formatTime(date) {
 
-        const hours = String(
-            date.getHours()
-        ).padStart(2, '0');
+        const hours =
+            String(
+                date.getHours()
+            ).padStart(2, '0');
 
-        const minutes = String(
-            date.getMinutes()
-        ).padStart(2, '0');
 
-        return `${hours}:${minutes}`;
+        const minutes =
+            String(
+                date.getMinutes()
+            ).padStart(2, '0');
+
+
+        return (
+            hours +
+            ':' +
+            minutes
+        );
 
     }
 
