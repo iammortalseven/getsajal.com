@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calendar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+<script>
+  // Set the theme before first paint to avoid a flash
+  try {
+    document.documentElement.dataset.theme = localStorage.getItem('theme') ||
+      (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  } catch (e) {}
+</script>
+</head>
+<body>
+<div class="app" id="app">
+
+  <header class="topbar">
+    <button id="menuBtn" class="icon-btn" type="button" aria-label="Toggle sidebar">☰</button>
+    <h1 class="brand">Calendar</h1>
+    <div class="nav">
+      <button id="todayBtn" class="btn" type="button">Today</button>
+      <button id="prevBtn" class="icon-btn" type="button" aria-label="Previous">‹</button>
+      <button id="nextBtn" class="icon-btn" type="button" aria-label="Next">›</button>
+      <h2 id="title" aria-live="polite"></h2>
+    </div>
+    <div class="views" role="group" aria-label="Calendar view">
+      <button type="button" data-view="dayGridMonth" aria-pressed="false">Month</button>
+      <button type="button" data-view="timeGridWeek" aria-pressed="false">Week</button>
+      <button type="button" data-view="timeGridDay" aria-pressed="false">Day</button>
+      <button type="button" data-view="listMonth" aria-pressed="false">Agenda</button>
+    </div>
+    <button id="themeBtn" class="icon-btn" type="button" aria-label="Toggle dark mode">◐</button>
+  </header>
+
+  <aside class="sidebar" aria-label="Sidebar">
+    <button id="newBtn" class="btn primary create" type="button">+ New event</button>
+    <div class="mini-head">
+      <strong id="miniTitle"></strong>
+      <span>
+        <button id="miniPrev" class="icon-btn" type="button" aria-label="Previous month">‹</button>
+        <button id="miniNext" class="icon-btn" type="button" aria-label="Next month">›</button>
+      </span>
+    </div>
+    <div id="mini"></div>
+    <h3>My calendars</h3>
+    <ul id="calList"></ul>
+  </aside>
+
+  <main><div id="calendar"></div></main>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <form id="form" novalidate>
+    <header>
+      <h2 id="dlgTitle">New event</h2>
+      <button id="dlgClose" class="icon-btn" type="button" aria-label="Close">×</button>
+    </header>
+
+    <input type="hidden" id="f-id">
+
+    <label class="field"><span>Title</span>
+      <input id="f-title" autocomplete="off" placeholder="Add title">
+    </label>
+
+    <label class="check"><input type="checkbox" id="f-allday"> All day</label>
+
+    <div class="grid">
+      <label class="field"><span>Start date</span><input type="date" id="f-sd"></label>
+      <label class="field"><span>Start time</span><input type="time" id="f-st"></label>
+      <label class="field"><span>End date</span><input type="date" id="f-ed"></label>
+      <label class="field"><span>End time</span><input type="time" id="f-et"></label>
+    </div>
+
+    <label class="field"><span>Calendar</span><select id="f-cal"></select></label>
+    <label class="field"><span>Location</span><input id="f-loc" autocomplete="off"></label>
+    <label class="field"><span>Notes</span><textarea id="f-notes" rows="3"></textarea></label>
+
+    <p id="f-error" class="error" role="alert" hidden></p>
+
+    <footer>
+      <button type="button" id="f-del" class="btn danger" hidden>Delete</button>
+      <span class="spacer"></span>
+      <button type="button" id="f-cancel" class="btn">Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </footer>
+  </form>
+</dialog>
+
+<div id="toasts" aria-live="polite"></div>
+
+<!-- FullCalendar v6 injects its own CSS; no separate stylesheet needed -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
