@@ -191,23 +191,26 @@
   function renderUpcoming() {
     const now = new Date();
     const today = localDate(now);
+    const horizon = new Date(now);
+    horizon.setDate(horizon.getDate() + 30);
     const all = calendar.getEvents();
-    $("event-count").textContent = all.length;
     const upcoming = all
-      .filter((event) =>
-        event.allDay
+      .filter((event) => {
+        const hasNotEnded = event.allDay
           ? localDate(event.end || event.start) > today
-          : (event.end || event.start) > now,
-      )
+          : (event.end || event.start) > now;
+        return hasNotEnded && event.start <= horizon;
+      })
       .sort((a, b) => a.start - b.start)
       .slice(0, 5);
+    $("event-count").textContent = upcoming.length;
     $("upcoming").replaceChildren();
     if (!upcoming.length) {
       const empty = document.createElement("p");
       empty.className = "empty-upcoming";
       const strong = document.createElement("strong");
       strong.textContent = "A little breathing room.";
-      empty.append(strong, "Your next plans will appear here.");
+      empty.append(strong, "Plans for the next 30 days will appear here.");
       $("upcoming").append(empty);
     }
     for (const event of upcoming) {
@@ -412,14 +415,18 @@
     const owner = row?.owner_id || user.id,
       selected = new Set(row?.share_with || []);
     $("share-owner").textContent =
-      `Created by ${member(owner)?.display_name || "a family member"}. The creator always has access.`;
+      owner === user.id
+        ? "You keep access to events you create. Other family members see this event only if you select them below."
+        : `Created by ${member(owner)?.display_name || "a family member"} and shared with you. Only its creator and selected people can access this event.`;
+    $("event-sharing").querySelector(":scope > p:last-child").textContent =
+      "Everyone included can edit or delete this event. Leave all unchecked to keep an event you create private.";
     $("share-options").replaceChildren();
     const candidates = context.members.filter((p) => p.id !== owner);
     if (!candidates.length) {
       const p = document.createElement("p");
       p.className = "field-help";
       p.textContent =
-        "No other family members yet. Open Family to copy your joining code.";
+        "No one else has joined your family yet. Open Family for your joining code.";
       $("share-options").append(p);
     }
     for (const person of candidates) {
