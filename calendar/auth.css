@@ -47,11 +47,15 @@
   font-size: 14px;
 }
 #auth-status,
+#password-status,
 #family-setup-status,
 #family-dialog-status {
   font-size: 13px;
   line-height: 1.6;
   overflow-wrap: anywhere;
+}
+.auth-back {
+  margin-top: 12px;
 }
 .auth-divider {
   margin: 26px 0 12px;

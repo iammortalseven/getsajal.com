@@ -4,6 +4,42 @@
   const PROJECT_URL = "https://cimnfvftxtkqivcpeotq.supabase.co";
   const PUBLISHABLE_KEY = "sb_publishable_J8gfHnGVcxLJEX6B-5DtwA_xOznCkJO";
   const $ = (id) => document.getElementById(id);
+  // Read the email-link type before the SDK consumes and removes its URL hash.
+  const linkParams = new URLSearchParams(location.hash.slice(1));
+  const queryParams = new URLSearchParams(location.search);
+  const emailLinkType = linkParams.get("type");
+  let emailLinkError = Boolean(
+    linkParams.get("error") || queryParams.get("error"),
+  );
+  let emailLinkPending =
+    !emailLinkError &&
+    Boolean(linkParams.get("access_token")) &&
+    ["invite", "recovery"].includes(emailLinkType);
+  let passwordFlow = null;
+  const passwordPendingKey = "sajal.calendar.password-pending.v1";
+  function rememberPasswordFlow(mode, accountId) {
+    try {
+      if (mode)
+        sessionStorage.setItem(
+          passwordPendingKey,
+          JSON.stringify({ mode, accountId }),
+        );
+      else sessionStorage.removeItem(passwordPendingKey);
+    } catch {
+      /* The active flow still works if browser storage is blocked. */
+    }
+  }
+  function pendingPasswordFlow(accountId) {
+    try {
+      const pending = JSON.parse(sessionStorage.getItem(passwordPendingKey));
+      return pending?.accountId === accountId &&
+        ["invite", "recovery"].includes(pending.mode)
+        ? pending.mode
+        : null;
+    } catch {
+      return null;
+    }
+  }
   const form = $("event-form"),
     dialog = $("event-dialog");
   const colors = ["#28634c", "#3b6b9c", "#9b5f2d", "#855593", "#b44b60"];
@@ -549,11 +585,15 @@
     $("notice").hidden = true;
     $("calendar-app").hidden = true;
     $("family-setup-screen").hidden = true;
+    $("password-screen").hidden = true;
+    $("password-form").reset();
+    $("password-account").textContent = "";
+    $("reset-form").hidden = true;
     $("login-screen").hidden = false;
     setBusy(false);
   }
   async function refreshCloud(first = false) {
-    if (!user) return false;
+    if (!user || passwordFlow) return false;
     const requestEpoch = epoch;
     if (refreshFlight?.epoch === requestEpoch) return refreshFlight.promise;
     const promise = (async () => {
@@ -632,19 +672,148 @@
       if (refreshFlight?.promise === promise) refreshFlight = null;
     }
   }
-  function handleSession(session) {
+  function handleSession(session, event) {
     const next = session?.user || null;
+    if (!next && emailLinkPending) {
+      emailLinkPending = false;
+      emailLinkError = true;
+    }
+    let nextFlow = next ? pendingPasswordFlow(next.id) : null;
+    if (next && (emailLinkPending || event === "PASSWORD_RECOVERY")) {
+      nextFlow = event === "PASSWORD_RECOVERY" ? "recovery" : emailLinkType;
+      emailLinkPending = false;
+    }
+    if (
+      next &&
+      nextFlow &&
+      (next.id !== user?.id || passwordFlow !== nextFlow)
+    ) {
+      initialSessionSeen = true;
+      epoch++;
+      user = next;
+      passwordFlow = nextFlow;
+      rememberPasswordFlow(nextFlow, user.id);
+      clearAccountView();
+      $("login-screen").hidden = true;
+      $("password-screen").hidden = false;
+      $("password-heading").textContent =
+        nextFlow === "invite"
+          ? "Choose your password."
+          : "Reset your password.";
+      $("password-intro").textContent =
+        nextFlow === "invite"
+          ? "Finish setting up your calendar login."
+          : "Choose a new password for your calendar.";
+      $("password-account").textContent = user.email || "";
+      status("password-status", "");
+      $("new-password").focus();
+      return;
+    }
     if (initialSessionSeen && next?.id === user?.id) return;
     initialSessionSeen = true;
     epoch++;
     user = next;
+    passwordFlow = null;
+    if (!user) rememberPasswordFlow(null);
     clearAccountView();
     $("login-form").hidden = Boolean(user);
     $("signed-in-error").hidden = Boolean(!user);
-    status("auth-status", user ? "Loading your calendar…" : "");
-    if (user) void refreshCloud(true);
+    status(
+      "auth-status",
+      user
+        ? "Loading your calendar…"
+        : emailLinkError
+          ? "This email link has expired or was already used. Request a new link, or sign in if your password is already set."
+          : "",
+      emailLinkError,
+    );
+    if (user)
+      void refreshCloud(true).then(() => {
+        if (emailLinkError)
+          message(
+            "This email link is no longer valid. You are using your existing sign-in. Request a new password reset link if needed.",
+            true,
+            true,
+          );
+      });
     else $("login-password").value = "";
   }
+  $("password-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!user || !passwordFlow || $("password-submit").disabled) return;
+    const requestEpoch = epoch;
+    const password = $("new-password").value;
+    if (password !== $("confirm-password").value) {
+      status("password-status", "The passwords do not match.", true);
+      return;
+    }
+    if (password.length < 12 || password.length > 128) {
+      status(
+        "password-status",
+        "Use a password between 12 and 128 characters.",
+        true,
+      );
+      return;
+    }
+    $("password-submit").disabled = true;
+    status("password-status", "Saving your password…");
+    try {
+      const { data, error } = await sb.auth.updateUser({ password });
+      if (error) throw error;
+      if (requestEpoch !== epoch) return;
+      user = data.user;
+      passwordFlow = null;
+      rememberPasswordFlow(null);
+      $("password-form").reset();
+      $("password-screen").hidden = true;
+      $("password-account").textContent = "";
+      $("login-screen").hidden = false;
+      $("login-form").hidden = true;
+      $("signed-in-error").hidden = true;
+      status("auth-status", "Password saved. Loading your calendar…");
+      await refreshCloud(true);
+    } catch (error) {
+      if (requestEpoch === epoch)
+        status("password-status", explain(error), true);
+    } finally {
+      $("password-submit").disabled = false;
+    }
+  });
+  $("forgot-password").addEventListener("click", () => {
+    $("login-form").hidden = true;
+    $("reset-form").hidden = false;
+    $("reset-email").value = $("login-email").value;
+    status("auth-status", "");
+    $("reset-email").focus();
+  });
+  $("reset-cancel").addEventListener("click", () => {
+    $("reset-form").hidden = true;
+    $("login-form").hidden = false;
+    status("auth-status", "");
+  });
+  $("reset-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if ($("reset-submit").disabled) return;
+    $("reset-submit").disabled = true;
+    status("auth-status", "Requesting a reset link…");
+    try {
+      const { error } = await sb.auth.resetPasswordForEmail(
+        $("reset-email").value.trim(),
+        {
+          redirectTo: new URL("./", location.href).href,
+        },
+      );
+      if (error) throw error;
+      status(
+        "auth-status",
+        "If that email has a calendar account, a reset link will arrive shortly. Check your spam folder too.",
+      );
+    } catch (error) {
+      status("auth-status", explain(error), true);
+    } finally {
+      $("reset-submit").disabled = false;
+    }
+  });
   $("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     $("login-submit").disabled = true;
@@ -668,7 +837,12 @@
       status("auth-status", explain(error), true);
     }
   }
-  for (const id of ["signout", "setup-signout", "family-setup-signout"])
+  for (const id of [
+    "signout",
+    "setup-signout",
+    "family-setup-signout",
+    "password-signout",
+  ])
     $(id).addEventListener("click", signOut);
   $("retry-load").addEventListener("click", () => refreshCloud(true));
   async function setupFamily(e, join) {
@@ -1000,12 +1174,19 @@
   window.addEventListener("focus", () => {
     if (user && !writeBusy) void refreshCloud();
   });
+  // An email link may target a tab that is already open on this page.
+  window.addEventListener("hashchange", () => {
+    const params = new URLSearchParams(location.hash.slice(1));
+    if (params.has("access_token") || params.has("error")) location.reload();
+  });
   // Never make Supabase requests from inside its auth callback/session lock.
-  sb.auth.onAuthStateChange((_event, session) =>
-    setTimeout(() => handleSession(session), 0),
+  sb.auth.onAuthStateChange((event, session) =>
+    setTimeout(() => handleSession(session, event), 0),
   );
   sb.auth.getSession().then(({ data, error }) => {
-    if (error) status("auth-status", explain(error), true);
-    else handleSession(data.session);
+    if (error) {
+      emailLinkPending = false;
+      status("auth-status", explain(error), true);
+    } else handleSession(data.session);
   });
 })();

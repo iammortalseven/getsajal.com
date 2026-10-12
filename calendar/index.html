@@ -7,11 +7,11 @@
     <meta name="theme-color" content="#214c3c" />
     <title>My Calendar · Sajal</title>
     <link rel="stylesheet" href="./style.css?v=20261012-mobile1" />
-    <link rel="stylesheet" href="./auth.css?v=20261012-family1" />
+    <link rel="stylesheet" href="./auth.css?v=20261012-invites1" />
     <script defer src="./vendor/fullcalendar-6.1.18.min.js"></script>
     <script defer src="./vendor/supabase-2.102.0.js"></script>
     <script defer src="./holidays.js?v=20261012-family1"></script>
-    <script defer src="./app.js?v=20261012-family1"></script>
+    <script defer src="./app.js?v=20261012-invites1"></script>
   </head>
   <body>
     <section
@@ -47,8 +47,24 @@
             Sign in
           </button>
           <p class="field-help">
-            Your family administrator creates your account in Supabase.
+            Invitation only. Open your invitation email to choose your password.
           </p>
+          <button id="forgot-password" type="button" class="secondary">
+            Forgot password?
+          </button>
+        </form>
+        <form id="reset-form" hidden>
+          <p class="auth-intro">
+            Enter your calendar email for a password reset link.
+          </p>
+          <label for="reset-email">Email</label>
+          <input id="reset-email" type="email" required autocomplete="email" />
+          <button id="reset-submit" type="submit" class="primary">
+            Send reset link
+          </button>
+          <button id="reset-cancel" type="button" class="secondary auth-back">
+            Back to sign in
+          </button>
         </form>
         <div id="signed-in-error" hidden>
           <p>You're signed in, but the calendar could not load.</p>
@@ -60,6 +76,51 @@
           </button>
         </div>
         <p id="auth-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+    <section
+      id="password-screen"
+      class="auth-screen"
+      hidden
+      aria-labelledby="password-heading"
+    >
+      <div class="auth-card">
+        <h1 id="password-heading">Choose your password.</h1>
+        <p id="password-intro" class="auth-intro">
+          Finish setting up your calendar login.
+        </p>
+        <p id="password-account" class="field-help"></p>
+        <form id="password-form">
+          <label for="new-password">New password</label>
+          <input
+            id="new-password"
+            type="password"
+            required
+            minlength="12"
+            maxlength="128"
+            autocomplete="new-password"
+            aria-describedby="password-help"
+          />
+          <label for="confirm-password">Confirm password</label>
+          <input
+            id="confirm-password"
+            type="password"
+            required
+            minlength="12"
+            maxlength="128"
+            autocomplete="new-password"
+          />
+          <p id="password-help" class="field-help">
+            Use at least 12 characters. This is your calendar password.
+          </p>
+          <button id="password-submit" type="submit" class="primary">
+            Save password and continue
+          </button>
+        </form>
+        <p id="password-status" role="status" aria-live="polite"></p>
+        <button id="password-signout" type="button" class="secondary">
+          Sign out
+        </button>
       </div>
     </section>
     <section
