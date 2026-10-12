@@ -1,1 +1,47 @@
-
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#214c3c">
+  <title>My Calendar · Sajal</title>
+  <link rel="stylesheet" href="./style.css?v=20261012">
+  <script defer src="./vendor/fullcalendar-6.1.18.min.js"></script>
+  <script defer src="./app.js?v=20261012"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="./" aria-label="My Calendar home"><span class="brand-icon" aria-hidden="true">S.</span><span>SAJAL<span class="brand-subtitle">A little room to plan.</span></span></a>
+      <div class="sidebar-intro"><p class="eyebrow">YOUR OWN SPACE</p><h1>My Calendar<span class="heading-dot">.</span></h1><p>Make time for what matters.</p></div>
+      <button class="primary new-event" type="button"><span aria-hidden="true">+</span> New event</button>
+      <section class="upcoming-section" aria-labelledby="upcoming-heading"><div class="section-heading"><h2 id="upcoming-heading">Coming up</h2><span id="event-count">0</span></div><div id="upcoming"></div></section>
+      <div class="sidebar-bottom"><span class="storage-dot" aria-hidden="true"></span><p>Saved in this browser<span>No account or sync yet.</span></p></div>
+    </aside>
+    <main class="main-panel">
+      <header class="page-header"><div><p class="eyebrow" id="today-label"></p><h2>Your time, thoughtfully planned.</h2></div><div class="backup-actions"><button id="export" type="button" class="secondary">Export backup</button><button id="import" type="button" class="secondary">Import</button><input id="import-file" type="file" accept="application/json,.json" hidden></div></header>
+      <p class="info-bar"><span aria-hidden="true">↗</span> Click a date to plan something. Drag events to move them.</p>
+      <div id="notice" role="status" aria-live="polite" hidden></div>
+      <section class="calendar-card" aria-label="Calendar"><div id="calendar"></div></section>
+      <footer class="page-footer"><span id="timezone-label"></span><span>Small plans. Good days.</span></footer>
+      <noscript><p class="error">Enable JavaScript to use this calendar.</p></noscript>
+    </main>
+  </div>
+  <dialog id="event-dialog" aria-labelledby="dialog-title">
+    <form id="event-form">
+      <div class="dialog-header"><div><p class="eyebrow">MAKE A LITTLE SPACE</p><h2 id="dialog-title">New event</h2></div><button id="close-dialog" type="button" class="icon-button" aria-label="Close event form">×</button></div>
+      <label for="event-title">Event title</label><input id="event-title" name="title" required maxlength="200" placeholder="What’s the plan?" autocomplete="off">
+      <label class="checkbox-label"><input id="all-day" type="checkbox"> All day</label>
+      <div class="date-fields"><div><label for="start-date">Start date</label><input id="start-date" type="date" required><label for="start-time" class="time-label">Start time</label><input id="start-time" type="time" required></div><div><label for="end-date">End date</label><input id="end-date" type="date" required><label for="end-time" class="time-label">End time</label><input id="end-time" type="time" required></div></div>
+      <p class="field-help" id="date-help">Times use your device’s timezone.</p>
+      <label for="event-location">Location <span class="optional">optional</span></label><input id="event-location" maxlength="300" placeholder="Where are you heading?">
+      <label for="event-notes">Notes <span class="optional">optional</span></label><textarea id="event-notes" rows="3" maxlength="4000" placeholder="Anything to remember…"></textarea>
+      <label for="event-color">Event colour</label><select id="event-color"><option value="#28634c">Forest</option><option value="#3b6b9c">Ocean</option><option value="#9b5f2d">Amber</option><option value="#855593">Lavender</option><option value="#b44b60">Rose</option></select>
+      <p id="form-error" class="error" role="alert" hidden></p>
+      <div class="dialog-actions"><button id="delete-event" type="button" class="danger" hidden>Delete</button><div><button id="cancel-dialog" type="button" class="secondary">Cancel</button><button type="submit" class="primary">Save event</button></div></div>
+    </form>
+  </dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><form method="dialog"><h2 id="confirm-title">Delete this event?</h2><p>You can keep it by choosing Cancel.</p><div class="confirm-actions"><button value="cancel" class="secondary">Cancel</button><button value="delete" class="danger">Delete event</button></div></form></dialog>
+</body>
+</html>
