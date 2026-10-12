@@ -54,6 +54,11 @@
     context = null,
     calendar = null,
     records = new Map();
+  let reminders = new Map(),
+    reminderBackendReady = false;
+  let reminderTimezone =
+    Intl.DateTimeFormat().resolvedOptions().timeZone || "Australia/Sydney";
+  let reminderLinkHandled = false;
   let editingId = null,
     editingVersion = null,
     editingHoliday = false,
@@ -66,7 +71,12 @@
     lastSnapshot = "",
     noticeTimer,
     cloudConnected = false;
-  if (!window.supabase || !window.FullCalendar || !window.CalendarHolidays) {
+  if (
+    !window.supabase ||
+    !window.FullCalendar ||
+    !window.CalendarHolidays ||
+    !window.CalendarPush
+  ) {
     $("auth-status").textContent =
       "A required file could not load. Upload all files in the supplied calendar folder, then refresh.";
     $("login-submit").disabled = true;
@@ -258,6 +268,11 @@
     $("date-help").textContent = allDay
       ? "End date is the last day of the event, including that day."
       : "Times use your device’s timezone.";
+    $("event-reminder-help").textContent = !reminderBackendReady
+      ? "Finish the Supabase notification setup to save reminders."
+      : "Only your reminder is saved. Enable a device under Notifications." +
+        (allDay ? ` All-day events use 9 am in ${reminderTimezone}.` : "") +
+        " Past reminder times are not replayed.";
   }
   function openForm(event = null, selection = null) {
     if (!user || !context?.family || writeBusy) return;
@@ -318,6 +333,16 @@
     }
     $("event-color").value = color;
     $("event-sharing").hidden = readOnly;
+    $("event-reminder-fields").hidden = readOnly;
+    const savedReminder = reminders.get(event?.id);
+    reminderTimezone =
+      savedReminder?.timezone ||
+      Intl.DateTimeFormat().resolvedOptions().timeZone ||
+      "Australia/Sydney";
+    $("event-reminder").value = savedReminder
+      ? String(savedReminder.minutes)
+      : "";
+    $("event-reminder").disabled = readOnly || !reminderBackendReady;
     renderSharers(records.get(editingId));
     updateAllDay();
     if (readOnly)
@@ -357,6 +382,8 @@
     }
     return data;
   }
+  const push = CalendarPush.create({ rpc });
+  $("notification-settings").addEventListener("click", () => push.open());
   function explain(error) {
     if (["PGRST202", "42P01", "PGRST205"].includes(error?.code))
       return "The database is not ready. Run setup.sql in the Supabase SQL Editor first.";
@@ -575,6 +602,9 @@
     calendar?.destroy();
     calendar = null;
     records.clear();
+    reminders.clear();
+    reminderLinkHandled = false;
+    reminderBackendReady = false;
     context = null;
     lastSnapshot = "";
     writeBusy = false;
@@ -605,9 +635,10 @@
     if (refreshFlight?.epoch === requestEpoch) return refreshFlight.promise;
     const promise = (async () => {
       try {
-        const [nextContext, rows] = await Promise.all([
+        const [nextContext, rows, ownReminders] = await Promise.all([
           rpc("cal_get_context"),
           rpc("cal_list_events"),
+          rpc("cal_list_my_reminders").catch(() => null),
         ]);
         if (requestEpoch !== epoch || !user) return false;
         if (nextContext.profile?.id !== user.id)
@@ -615,6 +646,10 @@
             "The account response did not match your sign-in. Sign out and try again.",
           );
         context = nextContext;
+        reminderBackendReady = ownReminders !== null;
+        reminders = new Map(
+          (ownReminders || []).map((row) => [row.event_id, row]),
+        );
         if (!context.family) {
           calendar?.destroy();
           calendar = null;
@@ -630,7 +665,7 @@
         $("calendar-app").hidden = false;
         $("account-name").textContent =
           `${context.profile.display_name} · ${context.family.name}`;
-        const snapshot = JSON.stringify([context, rows]);
+        const snapshot = JSON.stringify([context, rows, ownReminders]);
         if (snapshot !== lastSnapshot || !calendar) {
           records = new Map(rows.map((row) => [row.id, row]));
           lastSnapshot = snapshot;
@@ -656,6 +691,32 @@
         }
         cloudConnected = true;
         $("sync-status").textContent = "Synced";
+        if (!reminderLinkHandled) {
+          const params = new URLSearchParams(location.search);
+          const eventId = params.get("reminder");
+          const accountId = params.get("account");
+          if (eventId) {
+            reminderLinkHandled = true;
+            if (accountId && accountId !== user.id)
+              message(
+                "This reminder belongs to another account. Sign in to that account to view it.",
+                true,
+                true,
+              );
+            else {
+              const event = calendar.getEventById(eventId);
+              if (event && records.has(eventId)) {
+                calendar.gotoDate(event.start);
+                openForm(event);
+              } else
+                message(
+                  "This event was deleted or is no longer shared with you.",
+                  true,
+                  true,
+                );
+            }
+          }
+        }
         return true;
       } catch (error) {
         if (requestEpoch !== epoch) return false;
@@ -698,6 +759,7 @@
       initialSessionSeen = true;
       epoch++;
       user = next;
+      push.setAccount(user.id);
       passwordFlow = nextFlow;
       rememberPasswordFlow(nextFlow, user.id);
       clearAccountView();
@@ -720,6 +782,7 @@
     initialSessionSeen = true;
     epoch++;
     user = next;
+    push.setAccount(user?.id || null);
     passwordFlow = null;
     if (!user) rememberPasswordFlow(null);
     clearAccountView();
@@ -838,6 +901,11 @@
     }
   });
   async function signOut() {
+    try {
+      await push.disconnect();
+    } catch {
+      /* Browser subscription is stopped even if the server is unavailable. */
+    }
     const { error } = await sb.auth.signOut();
     if (error) {
       message(explain(error), true, true);
@@ -946,13 +1014,27 @@
         },
       ])[0];
       const data = { ...payload(normalized), id: editingId || draftId };
-      await rpc("cal_save_event", {
-        p_event: data,
-        p_share_with: [
-          ...$("share-options").querySelectorAll("input:checked"),
-        ].map((i) => i.value),
-        p_expected_version: editingVersion,
-      });
+      await rpc(
+        reminderBackendReady
+          ? "cal_save_event_with_reminder"
+          : "cal_save_event",
+        {
+          p_event: data,
+          p_share_with: [
+            ...$("share-options").querySelectorAll("input:checked"),
+          ].map((i) => i.value),
+          p_expected_version: editingVersion,
+          ...(reminderBackendReady
+            ? {
+                p_reminder_minutes:
+                  $("event-reminder").value === ""
+                    ? null
+                    : Number($("event-reminder").value),
+                p_reminder_timezone: reminderTimezone,
+              }
+            : {}),
+        },
+      );
       if (requestEpoch !== epoch) return;
       closeForm();
       const refreshed = await refreshCloud();

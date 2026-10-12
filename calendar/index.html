@@ -5,13 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex,nofollow" />
     <meta name="theme-color" content="#214c3c" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icons/calendar-192.png" />
     <title>My Calendar · Sajal</title>
     <link rel="stylesheet" href="./style.css?v=20261012-mobile1" />
-    <link rel="stylesheet" href="./auth.css?v=20261012-invites1" />
+    <link rel="stylesheet" href="./auth.css?v=20261013-push1" />
     <script defer src="./vendor/fullcalendar-6.1.18.min.js"></script>
     <script defer src="./vendor/supabase-2.102.0.js"></script>
     <script defer src="./holidays.js?v=20261012-family1"></script>
-    <script defer src="./app.js?v=20261012-invites1"></script>
+    <script defer src="./push.js?v=20261013-push1"></script>
+    <script defer src="./app.js?v=20261013-push1"></script>
   </head>
   <body>
     <section
@@ -197,6 +200,8 @@
           <span id="account-name"></span>
           <div>
             <span id="sync-status" role="status">Loading…</span
+            ><button id="notification-settings" type="button" class="secondary">
+              Notifications</button
             ><button id="family-settings" type="button" class="secondary">
               Family</button
             ><button id="signout" type="button" class="secondary">
@@ -329,6 +334,17 @@
           <option value="#855593">Lavender</option>
           <option value="#b44b60">Rose</option>
         </select>
+        <div id="event-reminder-fields">
+          <label for="event-reminder">Remind me</label>
+          <select id="event-reminder">
+            <option value="">No reminder</option>
+            <option value="0">At the start</option>
+            <option value="15">15 minutes before</option>
+            <option value="60">1 hour before</option>
+            <option value="1440">1 day before</option>
+          </select>
+          <p id="event-reminder-help" class="field-help"></p>
+        </div>
         <p id="form-error" class="error" role="alert" hidden></p>
         <div class="dialog-actions">
           <button id="delete-event" type="button" class="danger" hidden>
@@ -379,6 +395,52 @@
       <h3>Members</h3>
       <div id="family-members"></div>
       <p id="family-dialog-status" role="status" aria-live="polite"></p>
+    </dialog>
+    <dialog id="notification-dialog" aria-labelledby="notification-heading">
+      <div class="dialog-header">
+        <h2 id="notification-heading">Your notifications</h2>
+        <button
+          id="close-notifications"
+          type="button"
+          class="icon-button"
+          aria-label="Close notifications"
+        >
+          ×
+        </button>
+      </div>
+      <p id="notification-device-state" class="field-help">
+        Not enabled on this device.
+      </p>
+      <p class="field-help">
+        Reminders are personal. Enable each device you want to receive them on.
+        Other people choose their own reminders for shared events.
+      </p>
+      <div class="notification-actions">
+        <button id="enable-notifications" type="button" class="primary">
+          Enable this device
+        </button>
+        <button
+          id="test-notifications"
+          type="button"
+          class="secondary"
+          disabled
+        >
+          Send a test
+        </button>
+        <button
+          id="disable-notifications"
+          type="button"
+          class="secondary"
+          disabled
+        >
+          Disable this device
+        </button>
+      </div>
+      <p id="notification-status" role="status" aria-live="polite"></p>
+      <p class="field-help">
+        Lock-screen alerts hide event details. Notifications can be delayed by
+        network, browser or phone settings.
+      </p>
     </dialog>
   </body>
 </html>
