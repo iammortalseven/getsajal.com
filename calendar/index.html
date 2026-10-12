@@ -1,47 +1,323 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex,nofollow">
-  <meta name="theme-color" content="#214c3c">
-  <title>My Calendar · Sajal</title>
-  <link rel="stylesheet" href="./style.css?v=20261012">
-  <script defer src="./vendor/fullcalendar-6.1.18.min.js"></script>
-  <script defer src="./app.js?v=20261012"></script>
-</head>
-<body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <a class="brand" href="./" aria-label="My Calendar home"><span class="brand-icon" aria-hidden="true">S.</span><span>SAJAL<span class="brand-subtitle">A little room to plan.</span></span></a>
-      <div class="sidebar-intro"><p class="eyebrow">YOUR OWN SPACE</p><h1>My Calendar<span class="heading-dot">.</span></h1><p>Make time for what matters.</p></div>
-      <button class="primary new-event" type="button"><span aria-hidden="true">+</span> New event</button>
-      <section class="upcoming-section" aria-labelledby="upcoming-heading"><div class="section-heading"><h2 id="upcoming-heading">Coming up</h2><span id="event-count">0</span></div><div id="upcoming"></div></section>
-      <div class="sidebar-bottom"><span class="storage-dot" aria-hidden="true"></span><p>Saved in this browser<span>No account or sync yet.</span></p></div>
-    </aside>
-    <main class="main-panel">
-      <header class="page-header"><div><p class="eyebrow" id="today-label"></p><h2>Your time, thoughtfully planned.</h2></div><div class="backup-actions"><button id="export" type="button" class="secondary">Export backup</button><button id="import" type="button" class="secondary">Import</button><input id="import-file" type="file" accept="application/json,.json" hidden></div></header>
-      <p class="info-bar"><span aria-hidden="true">↗</span> Click a date to plan something. Drag events to move them.</p>
-      <div id="notice" role="status" aria-live="polite" hidden></div>
-      <section class="calendar-card" aria-label="Calendar"><div id="calendar"></div></section>
-      <footer class="page-footer"><span id="timezone-label"></span><span>Small plans. Good days.</span></footer>
-      <noscript><p class="error">Enable JavaScript to use this calendar.</p></noscript>
-    </main>
-  </div>
-  <dialog id="event-dialog" aria-labelledby="dialog-title">
-    <form id="event-form">
-      <div class="dialog-header"><div><p class="eyebrow">MAKE A LITTLE SPACE</p><h2 id="dialog-title">New event</h2></div><button id="close-dialog" type="button" class="icon-button" aria-label="Close event form">×</button></div>
-      <label for="event-title">Event title</label><input id="event-title" name="title" required maxlength="200" placeholder="What’s the plan?" autocomplete="off">
-      <label class="checkbox-label"><input id="all-day" type="checkbox"> All day</label>
-      <div class="date-fields"><div><label for="start-date">Start date</label><input id="start-date" type="date" required><label for="start-time" class="time-label">Start time</label><input id="start-time" type="time" required></div><div><label for="end-date">End date</label><input id="end-date" type="date" required><label for="end-time" class="time-label">End time</label><input id="end-time" type="time" required></div></div>
-      <p class="field-help" id="date-help">Times use your device’s timezone.</p>
-      <label for="event-location">Location <span class="optional">optional</span></label><input id="event-location" maxlength="300" placeholder="Where are you heading?">
-      <label for="event-notes">Notes <span class="optional">optional</span></label><textarea id="event-notes" rows="3" maxlength="4000" placeholder="Anything to remember…"></textarea>
-      <label for="event-color">Event colour</label><select id="event-color"><option value="#28634c">Forest</option><option value="#3b6b9c">Ocean</option><option value="#9b5f2d">Amber</option><option value="#855593">Lavender</option><option value="#b44b60">Rose</option></select>
-      <p id="form-error" class="error" role="alert" hidden></p>
-      <div class="dialog-actions"><button id="delete-event" type="button" class="danger" hidden>Delete</button><div><button id="cancel-dialog" type="button" class="secondary">Cancel</button><button type="submit" class="primary">Save event</button></div></div>
-    </form>
-  </dialog>
-  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><form method="dialog"><h2 id="confirm-title">Delete this event?</h2><p>You can keep it by choosing Cancel.</p><div class="confirm-actions"><button value="cancel" class="secondary">Cancel</button><button value="delete" class="danger">Delete event</button></div></form></dialog>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#214c3c" />
+    <title>My Calendar · Sajal</title>
+    <link rel="stylesheet" href="./style.css?v=20261012-mobile1" />
+    <link rel="stylesheet" href="./auth.css?v=20261012-family1" />
+    <script defer src="./vendor/fullcalendar-6.1.18.min.js"></script>
+    <script defer src="./vendor/supabase-2.102.0.js"></script>
+    <script defer src="./holidays.js?v=20261012-family1"></script>
+    <script defer src="./app.js?v=20261012-family1"></script>
+  </head>
+  <body>
+    <section
+      id="login-screen"
+      class="auth-screen"
+      aria-labelledby="login-heading"
+    >
+      <div class="auth-card">
+        <div class="brand">
+          <span class="brand-icon" aria-hidden="true">S.</span
+          ><span
+            >SAJAL<span class="brand-subtitle"
+              >A little room to plan.</span
+            ></span
+          >
+        </div>
+        <h1 id="login-heading">Your calendar, together.</h1>
+        <p class="auth-intro">Private plans and shared moments with family.</p>
+        <form id="login-form">
+          <label for="login-email">Email</label
+          ><input
+            id="login-email"
+            type="email"
+            required
+            autocomplete="username"
+          /><label for="login-password">Password</label
+          ><input
+            id="login-password"
+            type="password"
+            required
+            autocomplete="current-password"
+          /><button id="login-submit" type="submit" class="primary">
+            Sign in
+          </button>
+          <p class="field-help">
+            Your family administrator creates your account in Supabase.
+          </p>
+        </form>
+        <div id="signed-in-error" hidden>
+          <p>You're signed in, but the calendar could not load.</p>
+          <button id="retry-load" type="button" class="primary">
+            Try again
+          </button>
+          <button id="setup-signout" type="button" class="secondary">
+            Sign out
+          </button>
+        </div>
+        <p id="auth-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+    <section
+      id="family-setup-screen"
+      class="auth-screen"
+      hidden
+      aria-labelledby="family-setup-heading"
+    >
+      <div class="auth-card">
+        <h1 id="family-setup-heading">Make room for family.</h1>
+        <p class="auth-intro">
+          Create your family space, or join one with its private code.
+        </p>
+        <label for="setup-name">Your display name</label
+        ><input id="setup-name" maxlength="80" autocomplete="name" />
+        <form id="create-family-form">
+          <label for="family-name">Create a family</label
+          ><input
+            id="family-name"
+            required
+            maxlength="80"
+            value="Our family"
+          /><button type="submit" class="primary">Create family</button>
+        </form>
+        <div class="auth-divider">or join an existing family</div>
+        <form id="join-family-form">
+          <label for="family-code">Family code</label
+          ><input
+            id="family-code"
+            required
+            maxlength="32"
+            autocomplete="off"
+            spellcheck="false"
+          /><button type="submit" class="primary">Join family</button>
+        </form>
+        <p id="family-setup-status" role="status" aria-live="polite"></p>
+        <button id="family-setup-signout" type="button" class="secondary">
+          Sign out
+        </button>
+      </div>
+    </section>
+    <div id="calendar-app" class="app-shell" hidden>
+      <aside class="sidebar">
+        <a class="brand" href="./" aria-label="My Calendar home"
+          ><span class="brand-icon" aria-hidden="true">S.</span
+          ><span
+            >SAJAL<span class="brand-subtitle"
+              >A little room to plan.</span
+            ></span
+          ></a
+        >
+        <div class="sidebar-intro">
+          <p class="eyebrow">YOUR OWN SPACE</p>
+          <h1>My Calendar<span class="heading-dot">.</span></h1>
+          <p>Make time for what matters.</p>
+        </div>
+        <button class="primary new-event" type="button">
+          <span aria-hidden="true">+</span> New event
+        </button>
+        <section class="upcoming-section" aria-labelledby="upcoming-heading">
+          <div class="section-heading">
+            <h2 id="upcoming-heading">Coming up</h2>
+            <span id="event-count">0</span>
+          </div>
+          <div id="upcoming"></div>
+        </section>
+        <div class="sidebar-bottom">
+          <span class="storage-dot" aria-hidden="true"></span>
+          <p>Saved to your account<span>Private unless you share.</span></p>
+        </div>
+      </aside>
+      <main class="main-panel">
+        <div class="account-bar">
+          <span id="account-name"></span>
+          <div>
+            <span id="sync-status" role="status">Loading…</span
+            ><button id="family-settings" type="button" class="secondary">
+              Family</button
+            ><button id="signout" type="button" class="secondary">
+              Sign out
+            </button>
+          </div>
+        </div>
+        <header class="page-header">
+          <div>
+            <p class="eyebrow" id="today-label"></p>
+            <h2>Your time, thoughtfully planned.</h2>
+          </div>
+          <div class="backup-actions">
+            <button id="export" type="button" class="secondary">
+              Export backup</button
+            ><button id="import" type="button" class="secondary">Import</button
+            ><input
+              id="import-file"
+              type="file"
+              accept="application/json,.json"
+              hidden
+            />
+          </div>
+        </header>
+        <p class="info-bar">
+          <span aria-hidden="true">↗</span> Click a date to plan something.
+          Drag events to move them.
+        </p>
+        <div id="notice" role="status" aria-live="polite" hidden></div>
+        <div id="legacy-prompt" class="legacy-prompt" hidden>
+          <p>
+            There are events saved by the previous calendar in this browser.
+            Import them only if they belong to your account.
+          </p>
+          <button id="import-legacy" class="secondary" type="button">
+            Import my browser events
+          </button>
+        </div>
+        <section class="calendar-card" aria-label="Calendar">
+          <div id="calendar"></div>
+        </section>
+        <footer class="page-footer">
+          <span id="timezone-label"></span><span>Small plans. Good days.</span>
+        </footer>
+        <noscript
+          ><p class="error">
+            Enable JavaScript to use this calendar.
+          </p></noscript
+        >
+      </main>
+    </div>
+    <dialog id="event-dialog" aria-labelledby="dialog-title">
+      <form id="event-form">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">MAKE A LITTLE SPACE</p>
+            <h2 id="dialog-title">New event</h2>
+          </div>
+          <button
+            id="close-dialog"
+            type="button"
+            class="icon-button"
+            aria-label="Close event form"
+          >
+            ×
+          </button>
+        </div>
+        <label for="event-title">Event title</label
+        ><input
+          id="event-title"
+          name="title"
+          required
+          maxlength="200"
+          placeholder="What’s the plan?"
+          autocomplete="off"
+        />
+        <label class="checkbox-label"
+          ><input id="all-day" type="checkbox" /> All day</label
+        >
+        <div class="date-fields">
+          <div>
+            <label for="start-date">Start date</label
+            ><input id="start-date" type="date" required /><label
+              for="start-time"
+              class="time-label"
+              >Start time</label
+            ><input id="start-time" type="time" required />
+          </div>
+          <div>
+            <label for="end-date">End date</label
+            ><input id="end-date" type="date" required /><label
+              for="end-time"
+              class="time-label"
+              >End time</label
+            ><input id="end-time" type="time" required />
+          </div>
+        </div>
+        <p class="field-help" id="date-help">
+          Times use your device’s timezone.
+        </p>
+        <label for="event-location"
+          >Location <span class="optional">optional</span></label
+        ><input
+          id="event-location"
+          maxlength="300"
+          placeholder="Where are you heading?"
+        />
+        <label for="event-notes"
+          >Notes <span class="optional">optional</span></label
+        ><textarea
+          id="event-notes"
+          rows="3"
+          maxlength="4000"
+          placeholder="Anything to remember…"
+        ></textarea>
+        <fieldset id="event-sharing" class="share-fieldset">
+          <legend>Share with</legend>
+          <p id="share-owner" class="field-help"></p>
+          <div id="share-options"></div>
+          <p class="field-help">
+            Choose any number of family members. Everyone included can edit or
+            delete this event. Leave all unchecked to keep a new event private.
+          </p>
+        </fieldset>
+        <label for="event-color">Event colour</label
+        ><select id="event-color">
+          <option value="#28634c">Forest</option>
+          <option value="#3b6b9c">Ocean</option>
+          <option value="#9b5f2d">Amber</option>
+          <option value="#855593">Lavender</option>
+          <option value="#b44b60">Rose</option>
+        </select>
+        <p id="form-error" class="error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button id="delete-event" type="button" class="danger" hidden>
+            Delete
+          </button>
+          <div>
+            <button id="cancel-dialog" type="button" class="secondary">
+              Cancel</button
+            ><button type="submit" class="primary">Save event</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+      <form method="dialog">
+        <h2 id="confirm-title">Delete this event?</h2>
+        <p>You can keep it by choosing Cancel.</p>
+        <div class="confirm-actions">
+          <button value="cancel" class="secondary">Cancel</button
+          ><button value="delete" class="danger">Delete event</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="family-dialog" aria-labelledby="family-dialog-title">
+      <div class="dialog-header">
+        <h2 id="family-dialog-title">Your family</h2>
+        <button
+          id="close-family"
+          class="icon-button"
+          type="button"
+          aria-label="Close family settings"
+        >
+          ×
+        </button>
+      </div>
+      <p class="field-help">
+        A family account joins your space using this private code. Joining does
+        not reveal anyone's private events.
+      </p>
+      <label for="invite-code">Family code</label
+      ><input id="invite-code" readonly /><button
+        id="copy-family-code"
+        class="secondary"
+        type="button"
+      >
+        Copy code
+      </button>
+      <h3>Members</h3>
+      <div id="family-members"></div>
+      <p id="family-dialog-status" role="status" aria-live="polite"></p>
+    </dialog>
+  </body>
 </html>
