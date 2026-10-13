@@ -87,7 +87,7 @@
 }
 .account-bar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 12px;
   margin-bottom: 22px;
@@ -98,13 +98,24 @@
   gap: 8px;
   align-items: center;
 }
-#account-name {
+#account-display-name {
+  display: block;
+  text-transform: uppercase;
+}
+#calendar-app .brand > span:last-child {
+  min-width: 0;
   overflow-wrap: anywhere;
+}
+#calendar-app .brand-icon {
+  flex-shrink: 0;
 }
 #sync-status {
   color: var(--muted);
-  font-size: 11px;
-  white-space: nowrap;
+  font: inherit;
+  white-space: normal;
+}
+#calendar-app .page-footer #sync-status {
+  display: inline;
 }
 .share-fieldset {
   min-width: 0;
@@ -472,9 +483,6 @@ dialog {
   }
   #calendar-app .brand-subtitle {
     font-size: 9px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
   #calendar-app .new-event {
     width: auto;
@@ -498,15 +506,9 @@ dialog {
     padding: 12px 12px 0;
   }
   #calendar-app .account-bar {
-    margin-bottom: 12px;
-    gap: 8px;
-    flex-wrap: nowrap;
-  }
-  #account-name {
-    min-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+    height: 0;
+    margin: 0;
+    flex-shrink: 0;
   }
   #calendar-app .account-bar > div {
     flex-shrink: 0;
@@ -591,7 +593,7 @@ dialog {
     font-size: 10px;
     padding: 10px 2px;
   }
-  #calendar-app .page-footer span:last-child {
+  #calendar-app .page-footer > span:last-child {
     display: none;
   }
   #notice {
@@ -601,6 +603,18 @@ dialog {
 @media (max-width: 360px) {
   #calendar-app {
     --calendar-heading-size: 22px;
+  }
+  #calendar-app .sidebar {
+    gap: 6px;
+  }
+  #calendar-app .brand {
+    gap: 7px;
+    letter-spacing: 1px;
+  }
+  #calendar-app .new-event {
+    gap: 6px;
+    padding: 8px;
+    font-size: 12px;
   }
 }
 @media (max-height: 480px) and (max-width: 1000px) and (min-width: 600px) {
@@ -617,8 +631,7 @@ dialog {
     padding-top: 6px;
   }
   #calendar-app .account-bar {
-    margin-bottom: 6px;
-    font-size: 10px;
+    margin-bottom: 0;
   }
   #calendar-app .page-header {
     margin-bottom: 6px;

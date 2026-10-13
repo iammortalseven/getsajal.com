@@ -419,7 +419,7 @@
     $("sync-status").textContent = value
       ? "Saving…"
       : cloudConnected
-        ? "Synced"
+        ? "Account synced"
         : "Connection interrupted";
   }
   const member = (id) => context?.members.find((person) => person.id === id);
@@ -869,9 +869,10 @@
           ?.focus({ preventScroll: true });
     });
     const root = $("calendar");
-    let wheelTime = 0,
+    let wheelTime = -Infinity,
+      wheelStepTime = -Infinity,
       wheelDistance = 0,
-      wheelHandled = false;
+      wheelDirection = 0;
     root.addEventListener(
       "wheel",
       (event) => {
@@ -887,24 +888,29 @@
           return;
         event.preventDefault();
         const now = performance.now();
-        if (now - wheelTime > 180) {
+        const direction = Math.sign(event.deltaY);
+        if (now - wheelTime > 180 || direction !== wheelDirection) {
           wheelDistance = 0;
-          wheelHandled = false;
         }
         wheelTime = now;
-        wheelDistance +=
+        wheelDirection = direction;
+        const delta =
           event.deltaY *
           (event.deltaMode === 1
             ? 16
             : event.deltaMode === 2
               ? root.clientHeight
               : 1);
+        // Keep responding while the wheel moves, without queuing months after it stops.
+        wheelDistance = Math.max(-70, Math.min(70, wheelDistance + delta));
         if (
-          !wheelHandled &&
+          now - wheelStepTime >= 150 &&
           Math.abs(wheelDistance) >= 35 &&
           navigateMonth(Math.sign(wheelDistance))
-        )
-          wheelHandled = true;
+        ) {
+          wheelDistance = 0;
+          wheelStepTime = now;
+        }
       },
       { passive: false },
     );
@@ -1049,7 +1055,12 @@
     $("share-options").replaceChildren();
     $("family-members").replaceChildren();
     $("invite-code").value = "";
-    $("account-name").textContent = "";
+    for (const id of [
+      "account-initial",
+      "account-display-name",
+      "account-family",
+    ])
+      $(id).textContent = "";
     $("notice").hidden = true;
     $("calendar-app").hidden = true;
     $("family-setup-screen").hidden = true;
@@ -1097,8 +1108,11 @@
         $("login-screen").hidden = true;
         $("calendar-app").hidden = false;
         document.body.classList.add("calendar-home-active");
-        $("account-name").textContent =
-          `${context.profile.display_name} · ${context.family.name}`;
+        const displayName = context.profile.display_name.trim();
+        $("account-initial").textContent =
+          `${Array.from(displayName)[0]?.toLocaleUpperCase() || "?"}.`;
+        $("account-display-name").textContent = displayName;
+        $("account-family").textContent = context.family.name;
         const snapshot = JSON.stringify([context, rows, ownReminders]);
         if (snapshot !== lastSnapshot || !calendar) {
           records = new Map(rows.map((row) => [row.id, row]));
@@ -1124,7 +1138,7 @@
           updateLegacyPrompt();
         }
         cloudConnected = true;
-        $("sync-status").textContent = "Synced";
+        $("sync-status").textContent = writeBusy ? "Saving…" : "Account synced";
         if (!reminderLinkHandled) {
           const params = new URLSearchParams(location.search);
           const eventId = params.get("reminder");
@@ -1683,7 +1697,7 @@
     year: "numeric",
   });
   $("timezone-label").textContent =
-    `Device timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone || "local"} · Account sync`;
+    `Device timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone || "local"}`;
   // Foreground polling catches edits, deletions and removed sharing permissions.
   setInterval(() => {
     if (user && context?.family && !document.hidden && !writeBusy && !dragging)

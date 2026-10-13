@@ -9,12 +9,12 @@
     <link rel="apple-touch-icon" href="./icons/calendar-192.png" />
     <title>My Calendar · Sajal</title>
     <link rel="stylesheet" href="./style.css?v=20261012-mobile1" />
-    <link rel="stylesheet" href="./auth.css?v=20261013-layout1" />
+    <link rel="stylesheet" href="./auth.css?v=20261013-finetune1" />
     <script defer src="./vendor/fullcalendar-6.1.18.min.js"></script>
     <script defer src="./vendor/supabase-2.102.0.js"></script>
     <script defer src="./holidays.js?v=20261012-family1"></script>
     <script defer src="./push.js?v=20261013-push1"></script>
-    <script defer src="./app.js?v=20261013-layout1"></script>
+    <script defer src="./app.js?v=20261013-finetune1"></script>
   </head>
   <body>
     <section
@@ -168,13 +168,15 @@
     <div id="calendar-app" class="app-shell" hidden>
       <aside class="sidebar">
         <a class="brand" href="./" aria-label="My Calendar home"
-          ><span class="brand-icon" aria-hidden="true">S.</span
           ><span
-            >SAJAL<span class="brand-subtitle"
-              >A little room to plan.</span
-            ></span
-          ></a
-        >
+            id="account-initial"
+            class="brand-icon"
+            aria-hidden="true"
+          ></span
+          ><span
+            ><span id="account-display-name"></span
+            ><span id="account-family" class="brand-subtitle"></span></span
+        ></a>
         <div class="sidebar-intro">
           <p class="eyebrow">YOUR OWN SPACE</p>
           <h1>My Calendar<span class="heading-dot">.</span></h1>
@@ -215,22 +217,14 @@
       </aside>
       <main class="main-panel">
         <div class="account-bar">
-          <span id="account-name"></span>
-          <div>
-            <span id="sync-status" role="status">Loading…</span>
-            <div id="account-actions" role="group" aria-label="Account actions">
-              <button
-                id="notification-settings"
-                type="button"
-                class="secondary"
-              >
-                Notifications</button
-              ><button id="family-settings" type="button" class="secondary">
-                Family</button
-              ><button id="signout" type="button" class="secondary">
-                Sign out
-              </button>
-            </div>
+          <div id="account-actions" role="group" aria-label="Account actions">
+            <button id="notification-settings" type="button" class="secondary">
+              Notifications</button
+            ><button id="family-settings" type="button" class="secondary">
+              Family</button
+            ><button id="signout" type="button" class="secondary">
+              Sign out
+            </button>
           </div>
         </div>
         <header class="page-header">
@@ -261,7 +255,10 @@
           <div id="calendar"></div>
         </section>
         <footer class="page-footer">
-          <span id="timezone-label"></span><span>Small plans. Good days.</span>
+          <span
+            ><span id="timezone-label"></span> ·
+            <span id="sync-status" role="status">Loading…</span></span
+          ><span>Small plans. Good days.</span>
         </footer>
         <noscript
           ><p class="error">
