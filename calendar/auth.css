@@ -196,6 +196,81 @@
 .share-person > span {
   min-width: 0;
 }
+.event-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 20px;
+}
+.event-option-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #dce3d7;
+  border-radius: 7px;
+  background: white;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+}
+.event-option-label {
+  flex-shrink: 0;
+  font-weight: 650;
+}
+.event-option-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--muted);
+}
+#event-picker-dialog,
+#series-scope-dialog {
+  width: 420px;
+}
+.event-choice-list,
+.date-choice-list.event-choice-list {
+  height: auto;
+  min-height: 0;
+  max-height: min(300px, 48dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-top: 18px;
+}
+#share-options {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 4px;
+}
+#share-options .share-person {
+  margin: 0;
+  padding: 12px;
+  min-height: 44px;
+  border-radius: 7px;
+}
+#share-options .share-person:has(input:checked) {
+  background: #edf3e9;
+}
+#share-options input {
+  width: 18px;
+  height: 18px;
+}
+.date-choice-list.event-choice-list [role="option"] {
+  min-height: 44px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: inherit;
+}
+@media (max-width: 800px), (max-width: 1000px) and (pointer: coarse) {
+  .event-option-button,
+  .event-choice-list {
+    font-size: 16px;
+  }
+}
 .family-person {
   border-bottom: 1px solid var(--line);
   padding: 12px 0;

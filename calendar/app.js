@@ -55,7 +55,13 @@
     calendar = null,
     records = new Map();
   let reminders = new Map(),
-    reminderBackendReady = false;
+    reminderBackendReady = false,
+    recurrenceBackendReady = false;
+  let editingSeriesVersion = null,
+    viewExpansionTimer = null,
+    viewExpansionFlight = null,
+    expandedRanges = new Set(),
+    recurrenceSnapshot = "";
   let reminderTimezone =
     Intl.DateTimeFormat().resolvedOptions().timeZone || "Australia/Sydney";
   let reminderLinkHandled = false;
@@ -281,11 +287,7 @@
     $("date-help").textContent = allDay
       ? "End date is the last day of the event, including that day."
       : "Times use your device’s timezone.";
-    $("event-reminder-help").textContent = !reminderBackendReady
-      ? "Finish the Supabase notification setup to save reminders."
-      : "Only your reminder is saved. Enable a device under Notifications." +
-        (allDay ? ` All-day events use 9 am in ${reminderTimezone}.` : "") +
-        " Past reminder times are not replayed.";
+    $("event-reminder-help").textContent = "";
   }
   function openForm(event = null, selection = null) {
     if (!user || !context?.family || writeBusy) return;
@@ -295,6 +297,7 @@
     const readOnly = isPublicHoliday(event);
     editingHoliday = readOnly;
     editingVersion = records.get(editingId)?.version ?? null;
+    editingSeriesVersion = records.get(editingId)?.series_version ?? null;
     form.querySelectorAll("input, textarea, select").forEach((field) => {
       field.disabled = false;
     });
@@ -346,7 +349,9 @@
     }
     $("event-color").value = color;
     $("event-sharing").hidden = readOnly;
+    $("event-options").hidden = readOnly;
     $("event-reminder-fields").hidden = readOnly;
+    $("event-repeat-fields").hidden = readOnly;
     const savedReminder = reminders.get(event?.id);
     reminderTimezone =
       savedReminder?.timezone ||
@@ -356,8 +361,15 @@
       ? String(savedReminder.minutes)
       : "";
     $("event-reminder").disabled = readOnly || !reminderBackendReady;
+    $("event-repeat").value = records.get(editingId)?.repeat || "";
+    $("event-repeat-fields").disabled = !recurrenceBackendReady;
+    $("event-reminder-fields").disabled = !reminderBackendReady;
+    $("event-repeat-fields").title = recurrenceBackendReady
+      ? ""
+      : "Run repeating-events.sql to enable repeating events.";
     renderSharers(records.get(editingId));
     updateAllDay();
+    updateEventOptionSummaries();
     if (readOnly)
       form.querySelectorAll("input, textarea, select").forEach((field) => {
         field.disabled = true;
@@ -455,19 +467,12 @@
   function renderSharers(row) {
     const owner = row?.owner_id || user.id,
       selected = new Set(row?.share_with || []);
-    $("share-owner").textContent =
-      owner === user.id
-        ? "You keep access to events you create. Other family members see this event only if you select them below."
-        : `Created by ${member(owner)?.display_name || "a family member"} and shared with you. Only its creator and selected people can access this event.`;
-    $("event-sharing").querySelector(":scope > p:last-child").textContent =
-      "Everyone included can edit or delete this event. Leave all unchecked to keep an event you create private.";
     $("share-options").replaceChildren();
     const candidates = context.members.filter((p) => p.id !== owner);
     if (!candidates.length) {
       const p = document.createElement("p");
       p.className = "field-help";
-      p.textContent =
-        "No one else has joined your family yet. Open Family for your joining code.";
+      p.textContent = "No other family members";
       $("share-options").append(p);
     }
     for (const person of candidates) {
@@ -478,12 +483,10 @@
       input.value = person.id;
       input.checked = selected.has(person.id);
       const detail = document.createElement("span"),
-        name = document.createElement("span"),
-        email = document.createElement("small");
+        name = document.createElement("span");
       name.textContent =
         person.display_name + (person.id === user.id ? " (you)" : "");
-      email.textContent = person.email;
-      detail.append(name, email);
+      detail.append(name);
       label.append(input, detail);
       $("share-options").append(label);
     }
@@ -504,6 +507,261 @@
       div.append(name, email);
       $("family-members").append(div);
     }
+  }
+  function selectedSharers() {
+    return [...$("share-options").querySelectorAll("input:checked")].map(
+      (input) => input.value,
+    );
+  }
+  function updateEventOptionSummaries() {
+    const names = selectedSharers().map(
+      (id) => member(id)?.display_name || "Family member",
+    );
+    $("share-summary").textContent = names.length ? names.join(", ") : "No one";
+    $("event-sharing").title = names.join(", ");
+    $("reminder-summary").textContent =
+      $("event-reminder").selectedOptions[0]?.textContent || "No reminder";
+    $("repeat-summary").textContent =
+      $("event-repeat").selectedOptions[0]?.textContent || "Does not repeat";
+  }
+  let eventPickerKind = null,
+    eventPickerSnapshot = null,
+    eventPickerTrigger = null;
+  let scopeResolve = null,
+    scopeValue = "one";
+  function selectListValue(list, value) {
+    for (const button of list.querySelectorAll('[role="option"]'))
+      button.setAttribute(
+        "aria-selected",
+        String(button.dataset.value === value),
+      );
+    const active = [...list.children].find(
+      (button) => button.dataset.value === value,
+    );
+    if (active) list.setAttribute("aria-activedescendant", active.id);
+  }
+  function keyboardList(list, choose) {
+    list.addEventListener("click", (event) => {
+      const button = event.target.closest('[role="option"]');
+      if (button && !button.disabled) {
+        choose(button.dataset.value);
+        list.focus({ preventScroll: true });
+      }
+    });
+    list.addEventListener("keydown", (event) => {
+      const buttons = [...list.querySelectorAll('[role="option"]')].filter(
+        (button) => !button.disabled,
+      );
+      let index = Math.max(
+        0,
+        buttons.findIndex(
+          (button) => button.getAttribute("aria-selected") === "true",
+        ),
+      );
+      if (event.key === "ArrowDown")
+        index = Math.min(index + 1, buttons.length - 1);
+      else if (event.key === "ArrowUp") index = Math.max(0, index - 1);
+      else if (event.key === "Home") index = 0;
+      else if (event.key === "End") index = buttons.length - 1;
+      else return;
+      event.preventDefault();
+      if (buttons[index]) {
+        choose(buttons[index].dataset.value);
+        buttons[index].scrollIntoView({ block: "nearest" });
+      }
+    });
+  }
+  function openEventPicker(kind) {
+    if (!dialog.open || writeBusy || editingHoliday) return;
+    eventPickerKind = kind;
+    eventPickerTrigger = $(
+      kind === "share" ? "event-sharing" : `event-${kind}-fields`,
+    );
+    eventPickerSnapshot =
+      kind === "share" ? selectedSharers() : $(`event-${kind}`).value;
+    $("event-picker-heading").textContent =
+      kind === "share"
+        ? "Share with"
+        : kind === "reminder"
+          ? "Remind me"
+          : "Repeat";
+    $("share-options").hidden = kind !== "share";
+    $("event-single-options").hidden = kind === "share";
+    if (kind !== "share") {
+      const row = records.get(editingId);
+      const list = $("event-single-options");
+      list.replaceChildren(
+        ...[...$(`event-${kind}`).options].map((item, index) => {
+          const button = option(
+            item.value,
+            item.textContent,
+            item.value === eventPickerSnapshot,
+            `event-choice-${index}`,
+          );
+          if (
+            kind === "repeat" &&
+            row?.series_id &&
+            !row.can_edit_series &&
+            item.value &&
+            item.value !== row.repeat
+          )
+            button.disabled = true;
+          return button;
+        }),
+      );
+      selectListValue(list, eventPickerSnapshot);
+    }
+    $("event-picker-dialog").showModal();
+    if (kind === "share") $("share-options").querySelector("input")?.focus();
+    else {
+      $("event-single-options").focus({ preventScroll: true });
+      $("event-single-options")
+        .querySelector('[aria-selected="true"]')
+        ?.scrollIntoView({ block: "nearest" });
+    }
+  }
+  for (const [id, kind] of [
+    ["event-sharing", "share"],
+    ["event-reminder-fields", "reminder"],
+    ["event-repeat-fields", "repeat"],
+  ])
+    $(id).addEventListener("click", () => openEventPicker(kind));
+  keyboardList($("event-single-options"), (value) => {
+    $(`event-${eventPickerKind}`).value = value;
+    selectListValue($("event-single-options"), value);
+  });
+  $("event-picker-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    closeEventPicker(true);
+  });
+  for (const id of ["close-event-picker", "cancel-event-picker"])
+    $(id).addEventListener("click", () => closeEventPicker(false));
+  function closeEventPicker(commit, restoreFocus = true) {
+    if (!eventPickerKind) return;
+    if (!commit && eventPickerKind === "share")
+      for (const input of $("share-options").querySelectorAll("input"))
+        input.checked = eventPickerSnapshot.includes(input.value);
+    else if (!commit) $(`event-${eventPickerKind}`).value = eventPickerSnapshot;
+    updateEventOptionSummaries();
+    eventPickerKind = null;
+    $("event-picker-dialog").close();
+    eventPickerTrigger?.isConnected &&
+      dialog.open &&
+      restoreFocus &&
+      eventPickerTrigger.focus({ preventScroll: true });
+  }
+  $("event-picker-dialog").addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeEventPicker(false);
+  });
+  $("event-picker-dialog").addEventListener("close", () => {
+    if (!$("event-picker-dialog").open && eventPickerKind)
+      closeEventPicker(false);
+  });
+  function chooseSeriesScope(action) {
+    const row = records.get(editingId);
+    if (!row?.series_id) return Promise.resolve("one");
+    const changedPattern =
+      action === "save" &&
+      $("event-repeat").value &&
+      $("event-repeat").value !== row.repeat;
+    scopeValue = changedPattern ? "future" : "one";
+    const labels = [
+      ["one", "Only this event"],
+      ["future", "This and future events"],
+      ["all", "All events in the series"],
+    ];
+    $("series-scope-options").replaceChildren(
+      ...labels.map(([value, label]) => {
+        const button = option(
+          value,
+          label,
+          value === scopeValue,
+          "series-scope",
+        );
+        button.disabled =
+          (value !== "one" && !row.can_edit_series) ||
+          (value === "one" && Boolean(changedPattern));
+        return button;
+      }),
+    );
+    selectListValue($("series-scope-options"), scopeValue);
+    $("series-scope-heading").textContent =
+      action === "delete" ? "Delete repeating event" : "Edit repeating event";
+    $("series-scope-help").textContent =
+      action === "delete"
+        ? "Deletes the chosen events for everyone who shares them."
+        : "Future includes this event. All events also updates individually edited occurrences.";
+    $("confirm-series-scope").textContent =
+      action === "delete" ? "Delete events" : "Save changes";
+    $("confirm-series-scope").className =
+      action === "delete" ? "danger" : "primary";
+    $("series-scope-dialog").returnValue = "";
+    $("series-scope-dialog").showModal();
+    $("series-scope-options").focus({ preventScroll: true });
+    return new Promise((resolve) => {
+      scopeResolve = resolve;
+    });
+  }
+  keyboardList($("series-scope-options"), (value) => {
+    scopeValue = value;
+    selectListValue($("series-scope-options"), value);
+  });
+  $("series-scope-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    $("series-scope-dialog").close(scopeValue);
+  });
+  for (const id of ["close-series-scope", "cancel-series-scope"])
+    $(id).addEventListener("click", () => $("series-scope-dialog").close());
+  $("series-scope-dialog").addEventListener("close", () => {
+    const resolve = scopeResolve;
+    scopeResolve = null;
+    resolve?.(
+      ["one", "future", "all"].includes($("series-scope-dialog").returnValue)
+        ? $("series-scope-dialog").returnValue
+        : null,
+    );
+    if (dialog.open) $("cancel-dialog").focus({ preventScroll: true });
+  });
+  function queueViewExpansion() {
+    clearTimeout(viewExpansionTimer);
+    if (!recurrenceBackendReady || !user || !calendar) return;
+    viewExpansionTimer = setTimeout(async () => {
+      if (!calendar || !user || !recurrenceBackendReady) return;
+      if (calendar.view.activeStart.getFullYear() < 100) return;
+      const from = localDate(calendar.view.activeStart),
+        to =
+          calendar.view.activeEnd.getFullYear() > 9999
+            ? "9999-12-31"
+            : localDate(calendar.view.activeEnd);
+      const key = `${from}/${to}`;
+      if (expandedRanges.has(key)) return;
+      if (viewExpansionFlight) {
+        queueViewExpansion();
+        return;
+      }
+      const requestEpoch = epoch;
+      viewExpansionFlight = rpc("cal_expand_series", {
+        p_from: from,
+        p_to: to,
+      });
+      try {
+        await viewExpansionFlight;
+        if (requestEpoch === epoch) {
+          expandedRanges.add(key);
+          await refreshCloud();
+        }
+      } catch (error) {
+        if (requestEpoch === epoch)
+          message(
+            `Repeating events could not load: ${explain(error)}`,
+            true,
+            true,
+          );
+      } finally {
+        viewExpansionFlight = null;
+      }
+    }, 150);
   }
   function buildCalendar() {
     calendar = new FullCalendar.Calendar($("calendar"), {
@@ -560,7 +818,10 @@
       eventsSet: () => {
         if (calendar) renderUpcoming();
       },
-      datesSet: (info) => renderCalendarTitle(info.view),
+      datesSet: (info) => {
+        renderCalendarTitle(info.view);
+        queueViewExpansion();
+      },
       select: (info) => {
         if (Date.now() < suppressCalendarTapUntil) {
           calendar?.unselect();
@@ -1018,15 +1279,18 @@
     );
   }
   function closeForm() {
+    if ($("event-picker-dialog").open) closeEventPicker(true, false);
+    if ($("series-scope-dialog").open) $("series-scope-dialog").close();
     dialog.close();
     form.reset();
     $("share-options").replaceChildren();
-    $("share-owner").textContent = "";
     editingId = null;
     editingVersion = null;
+    editingSeriesVersion = null;
     editingHoliday = false;
   }
   function clearAccountView() {
+    if ($("event-picker-dialog").open) closeEventPicker(true, false);
     document.body.classList.remove("calendar-home-active");
     closeAccountMenu();
     calendarSizeObserver?.disconnect();
@@ -1034,6 +1298,8 @@
     navigationAnimation?.cancel();
     navigationBusy = false;
     for (const id of [
+      "event-picker-dialog",
+      "series-scope-dialog",
       "event-dialog",
       "confirm-dialog",
       "family-dialog",
@@ -1042,6 +1308,7 @@
       if ($(id).open) $(id).close();
     editingId = null;
     editingVersion = null;
+    editingSeriesVersion = null;
     editingHoliday = false;
     calendar?.destroy();
     calendar = null;
@@ -1049,13 +1316,16 @@
     reminders.clear();
     reminderLinkHandled = false;
     reminderBackendReady = false;
+    recurrenceBackendReady = false;
+    expandedRanges.clear();
+    recurrenceSnapshot = "";
+    clearTimeout(viewExpansionTimer);
     context = null;
     lastSnapshot = "";
     writeBusy = false;
     dragging = false;
     cloudConnected = false;
     form.reset();
-    $("share-owner").textContent = "";
     $("family-dialog-title").textContent = "Your family";
     $("calendar").replaceChildren();
     $("upcoming").replaceChildren();
@@ -1084,18 +1354,44 @@
     if (refreshFlight?.epoch === requestEpoch) return refreshFlight.promise;
     const promise = (async () => {
       try {
-        const [nextContext, rows, ownReminders] = await Promise.all([
+        let [nextContext, rows, ownReminders, repeatReady] = await Promise.all([
           rpc("cal_get_context"),
           rpc("cal_list_events"),
           rpc("cal_list_my_reminders").catch(() => null),
+          rpc("cal_recurrence_ready").catch(() => false),
         ]);
         if (requestEpoch !== epoch || !user) return false;
+        if (repeatReady && nextContext.family && !calendar) {
+          await rpc("cal_expand_series", {
+            p_from: addDays(localDate(new Date()), -2),
+            p_to: addDays(localDate(new Date()), 370),
+          });
+          [rows, ownReminders] = await Promise.all([
+            rpc("cal_list_events"),
+            rpc("cal_list_my_reminders").catch(() => null),
+          ]);
+          if (requestEpoch !== epoch || !user) return false;
+        }
         if (nextContext.profile?.id !== user.id)
           throw new Error(
             "The account response did not match your sign-in. Sign out and try again.",
           );
         context = nextContext;
         reminderBackendReady = ownReminders !== null;
+        recurrenceBackendReady = Boolean(repeatReady);
+        const patternSnapshot = JSON.stringify(
+          [
+            ...new Set(
+              rows
+                .filter((row) => row.series_id)
+                .map((row) => `${row.series_id}/${row.series_version}`),
+            ),
+          ].sort(),
+        );
+        if (patternSnapshot !== recurrenceSnapshot) {
+          expandedRanges.clear();
+          recurrenceSnapshot = patternSnapshot;
+        }
         reminders = new Map(
           (ownReminders || []).map((row) => [row.event_id, row]),
         );
@@ -1133,7 +1429,10 @@
                 true,
                 true,
               );
-            } else if (current.version !== editingVersion) {
+            } else if (
+              current.version !== editingVersion ||
+              (current.series_version ?? null) !== editingSeriesVersion
+            ) {
               $("form-error").textContent =
                 "This event changed elsewhere. Close and reopen it before saving.";
               $("form-error").hidden = false;
@@ -1146,6 +1445,7 @@
         }
         cloudConnected = true;
         $("sync-status").textContent = writeBusy ? "Saving…" : "Account synced";
+        queueViewExpansion();
         if (!reminderLinkHandled) {
           const params = new URLSearchParams(location.search);
           const eventId = params.get("reminder");
@@ -1444,6 +1744,9 @@
     e.preventDefault();
     if (editingHoliday || writeBusy || !user) return;
     const requestEpoch = epoch;
+    const scope = await chooseSeriesScope("save");
+    if (!scope || requestEpoch !== epoch || !user || !dialog.open || writeBusy)
+      return;
     setBusy(true);
     try {
       const allDay = $("all-day").checked,
@@ -1470,15 +1773,28 @@
       ])[0];
       const data = { ...payload(normalized), id: editingId || draftId };
       await rpc(
-        reminderBackendReady
-          ? "cal_save_event_with_reminder"
-          : "cal_save_event",
+        recurrenceBackendReady
+          ? "cal_save_recurring_event"
+          : reminderBackendReady
+            ? "cal_save_event_with_reminder"
+            : "cal_save_event",
         {
           p_event: data,
           p_share_with: [
             ...$("share-options").querySelectorAll("input:checked"),
           ].map((i) => i.value),
           p_expected_version: editingVersion,
+          ...(recurrenceBackendReady
+            ? {
+                p_repeat: $("event-repeat").value,
+                p_scope: scope,
+                p_expected_series_version: editingSeriesVersion,
+                p_repeat_timezone:
+                  records.get(editingId)?.repeat_timezone ||
+                  Intl.DateTimeFormat().resolvedOptions().timeZone ||
+                  "Australia/Sydney",
+              }
+            : {}),
           ...(reminderBackendReady
             ? {
                 p_reminder_minutes:
@@ -1510,7 +1826,14 @@
       if (requestEpoch === epoch) setBusy(false);
     }
   });
-  $("delete-event").addEventListener("click", () => {
+  $("delete-event").addEventListener("click", async () => {
+    if (records.get(editingId)?.series_id) {
+      const requestEpoch = epoch,
+        scope = await chooseSeriesScope("delete");
+      if (scope && requestEpoch === epoch && dialog.open)
+        await deleteSelectedEvent(scope);
+      return;
+    }
     const shared = (records.get(editingId)?.share_with.length || 0) > 0;
     $("confirm-dialog").querySelector("p").textContent = shared
       ? "Deleting this shared event removes it for everyone."
@@ -1526,13 +1849,28 @@
       writeBusy
     )
       return;
+    await deleteSelectedEvent("one");
+  });
+  async function deleteSelectedEvent(scope) {
+    if (!editingId || editingHoliday || writeBusy || !user) return;
     const requestEpoch = epoch;
     setBusy(true);
     try {
-      await rpc("cal_delete_event", {
-        p_id: editingId,
-        p_expected_version: editingVersion,
-      });
+      await rpc(
+        recurrenceBackendReady
+          ? "cal_delete_recurring_event"
+          : "cal_delete_event",
+        {
+          p_id: editingId,
+          p_expected_version: editingVersion,
+          ...(recurrenceBackendReady
+            ? {
+                p_scope: scope,
+                p_expected_series_version: editingSeriesVersion,
+              }
+            : {}),
+        },
+      );
       if (requestEpoch !== epoch) return;
       closeForm();
       await refreshCloud();
@@ -1545,7 +1883,7 @@
     } finally {
       if (requestEpoch === epoch) setBusy(false);
     }
-  });
+  }
   async function saveMovedEvent(info) {
     if (isPublicHoliday(info.event) || writeBusy) {
       info.revert();
@@ -1556,11 +1894,28 @@
     setBusy(true);
     try {
       if (!row) throw new Error("Refresh the calendar and try again.");
-      await rpc("cal_save_event", {
-        p_event: { ...payload(plainEvent(info.event)), id: info.event.id },
-        p_share_with: row.share_with,
-        p_expected_version: row.version,
-      });
+      await rpc(
+        recurrenceBackendReady ? "cal_save_recurring_event" : "cal_save_event",
+        {
+          p_event: { ...payload(plainEvent(info.event)), id: info.event.id },
+          p_share_with: row.share_with,
+          p_expected_version: row.version,
+          ...(recurrenceBackendReady
+            ? {
+                p_repeat: row.repeat || "",
+                p_scope: "one",
+                p_expected_series_version: row.series_version,
+                p_repeat_timezone:
+                  row.repeat_timezone ||
+                  Intl.DateTimeFormat().resolvedOptions().timeZone ||
+                  "Australia/Sydney",
+                p_reminder_minutes: reminders.get(row.id)?.minutes ?? null,
+                p_reminder_timezone:
+                  reminders.get(row.id)?.timezone || reminderTimezone,
+              }
+            : {}),
+        },
+      );
       if (requestEpoch === epoch) {
         await refreshCloud();
         message("Event moved and saved.");

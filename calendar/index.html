@@ -25,12 +25,12 @@
     />
     <title>My Calendar · Sajal</title>
     <link rel="stylesheet" href="./style.css?v=20261012-mobile1" />
-    <link rel="stylesheet" href="./auth.css?v=20261014-form1" />
+    <link rel="stylesheet" href="./auth.css?v=20261014-repeat1" />
     <script defer src="./vendor/fullcalendar-6.1.18.min.js"></script>
     <script defer src="./vendor/supabase-2.102.0.js"></script>
     <script defer src="./holidays.js?v=20261012-family1"></script>
     <script defer src="./push.js?v=20261013-push1"></script>
-    <script defer src="./app.js?v=20261013-wheel1"></script>
+    <script defer src="./app.js?v=20261014-repeat1"></script>
   </head>
   <body>
     <section
@@ -347,15 +347,6 @@
           maxlength="4000"
           placeholder="Anything to remember…"
         ></textarea>
-        <fieldset id="event-sharing" class="share-fieldset">
-          <legend>Share with</legend>
-          <p id="share-owner" class="field-help"></p>
-          <div id="share-options"></div>
-          <p class="field-help">
-            Choose any number of family members. Everyone included can edit or
-            delete this event. Leave all unchecked to keep a new event private.
-          </p>
-        </fieldset>
         <label for="event-color">Event colour</label
         ><select id="event-color">
           <option value="#28634c">Forest</option>
@@ -364,16 +355,54 @@
           <option value="#855593">Lavender</option>
           <option value="#b44b60">Rose</option>
         </select>
-        <div id="event-reminder-fields">
-          <label for="event-reminder">Remind me</label>
-          <select id="event-reminder">
+        <div id="event-options" class="event-options">
+          <button
+            id="event-sharing"
+            class="event-option-button"
+            type="button"
+            aria-haspopup="dialog"
+          >
+            <span class="event-option-label">Share with</span
+            ><span id="share-summary" class="event-option-value">No one</span
+            ><span aria-hidden="true">⌄</span>
+          </button>
+          <button
+            id="event-reminder-fields"
+            class="event-option-button"
+            type="button"
+            aria-haspopup="dialog"
+          >
+            <span class="event-option-label">Remind me</span
+            ><span id="reminder-summary" class="event-option-value"
+              >No reminder</span
+            ><span aria-hidden="true">⌄</span>
+          </button>
+          <button
+            id="event-repeat-fields"
+            class="event-option-button"
+            type="button"
+            aria-haspopup="dialog"
+          >
+            <span class="event-option-label">Repeat</span
+            ><span id="repeat-summary" class="event-option-value"
+              >Does not repeat</span
+            ><span aria-hidden="true">⌄</span>
+          </button>
+          <select id="event-reminder" hidden aria-hidden="true" tabindex="-1">
             <option value="">No reminder</option>
             <option value="0">At the start</option>
             <option value="15">15 minutes before</option>
             <option value="60">1 hour before</option>
             <option value="1440">1 day before</option>
           </select>
-          <p id="event-reminder-help" class="field-help"></p>
+          <select id="event-repeat" hidden aria-hidden="true" tabindex="-1">
+            <option value="">Does not repeat</option>
+            <option value="weekly">Weekly</option>
+            <option value="fortnightly">Fortnightly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+          <p id="event-reminder-help" class="field-help" hidden></p>
         </div>
         <p id="form-error" class="error" role="alert" hidden></p>
         <div class="dialog-actions">
@@ -385,6 +414,73 @@
               Cancel</button
             ><button type="submit" class="primary">Save event</button>
           </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="event-picker-dialog" aria-labelledby="event-picker-heading">
+      <form id="event-picker-form">
+        <div class="dialog-header">
+          <h2 id="event-picker-heading">Share with</h2>
+          <button
+            id="close-event-picker"
+            class="icon-button"
+            type="button"
+            aria-label="Close choices"
+          >
+            ×
+          </button>
+        </div>
+        <div
+          id="share-options"
+          class="event-choice-list"
+          role="group"
+          aria-label="Family members"
+          hidden
+        ></div>
+        <div
+          id="event-single-options"
+          class="date-choice-list event-choice-list"
+          role="listbox"
+          tabindex="0"
+          aria-labelledby="event-picker-heading"
+          hidden
+        ></div>
+        <div class="confirm-actions">
+          <button id="cancel-event-picker" class="secondary" type="button">
+            Cancel
+          </button>
+          <button class="primary" type="submit">Done</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="series-scope-dialog" aria-labelledby="series-scope-heading">
+      <form id="series-scope-form">
+        <div class="dialog-header">
+          <h2 id="series-scope-heading">Edit repeating event</h2>
+          <button
+            id="close-series-scope"
+            class="icon-button"
+            type="button"
+            aria-label="Close repeat choices"
+          >
+            ×
+          </button>
+        </div>
+        <div
+          id="series-scope-options"
+          class="date-choice-list event-choice-list"
+          role="listbox"
+          tabindex="0"
+          aria-labelledby="series-scope-heading"
+        ></div>
+        <p id="series-scope-help" class="field-help"></p>
+        <div class="confirm-actions">
+          <button id="cancel-series-scope" class="secondary" type="button">
+            Cancel
+          </button>
+          <button id="confirm-series-scope" class="primary" type="submit">
+            Save changes
+          </button>
         </div>
       </form>
     </dialog>
