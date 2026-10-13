@@ -40,6 +40,51 @@
   min-width: 0;
   font-size: 16px;
 }
+/* Give native date/time controls the same box size as other event fields. */
+#event-form .date-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#event-form .date-fields > div {
+  min-width: 0;
+}
+@media (max-width: 480px) {
+  #event-form .date-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+#event-form input:not([type="checkbox"]),
+#event-form select {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: calc(1.25em + 22px);
+  line-height: 1.25;
+}
+@media (max-width: 800px), (max-width: 1000px) and (pointer: coarse) {
+  #event-form input:not([type="checkbox"]),
+  #event-form select {
+    font-size: 16px;
+  }
+}
+#event-form input[type="date"],
+#event-form input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 0;
+}
+#event-form input::-webkit-date-and-time-value {
+  min-height: 1.25em;
+  text-align: inherit;
+}
+#event-form input::-webkit-datetime-edit {
+  display: inline-flex;
+  padding: 0;
+}
+#event-form input::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
 .auth-card form > .primary {
   width: 100%;
   min-height: 44px;
