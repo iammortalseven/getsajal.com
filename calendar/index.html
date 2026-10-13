@@ -25,12 +25,12 @@
     />
     <title>My Calendar · Sajal</title>
     <link rel="stylesheet" href="./style.css?v=20261012-mobile1" />
-    <link rel="stylesheet" href="./auth.css?v=20261014-repeat1" />
+    <link rel="stylesheet" href="./auth.css?v=20261014-compact1" />
     <script defer src="./vendor/fullcalendar-6.1.18.min.js"></script>
     <script defer src="./vendor/supabase-2.102.0.js"></script>
     <script defer src="./holidays.js?v=20261012-family1"></script>
     <script defer src="./push.js?v=20261013-push1"></script>
-    <script defer src="./app.js?v=20261014-tap1"></script>
+    <script defer src="./app.js?v=20261014-compact1"></script>
   </head>
   <body>
     <section
@@ -311,22 +311,32 @@
         <label class="checkbox-label"
           ><input id="all-day" type="checkbox" /> All day</label
         >
-        <div class="date-fields">
-          <div>
-            <label for="start-date">Start date</label
-            ><input id="start-date" type="date" required /><label
-              for="start-time"
-              class="time-label"
-              >Start time</label
-            ><input id="start-time" type="time" required />
+        <div id="event-date-fields" class="date-fields">
+          <div id="start-date-fields">
+            <div class="date-label-row">
+              <label for="start-date">Start date</label>
+              <button
+                id="toggle-end-date"
+                type="button"
+                aria-expanded="false"
+                aria-controls="end-date-fields"
+              >
+                Add end date
+              </button>
+            </div>
+            <input id="start-date" type="date" required />
           </div>
-          <div>
-            <label for="end-date">End date</label
-            ><input id="end-date" type="date" required /><label
-              for="end-time"
-              class="time-label"
-              >End time</label
-            ><input id="end-time" type="time" required />
+          <div id="end-date-fields" hidden>
+            <label for="end-date">End date</label>
+            <input id="end-date" type="date" />
+          </div>
+          <div id="start-time-fields">
+            <label for="start-time" class="time-label">Start time</label>
+            <input id="start-time" type="time" required />
+          </div>
+          <div id="end-time-fields">
+            <label for="end-time" class="time-label">End time</label>
+            <input id="end-time" type="time" required />
           </div>
         </div>
         <p class="field-help" id="date-help">
@@ -347,14 +357,6 @@
           maxlength="4000"
           placeholder="Anything to remember…"
         ></textarea>
-        <label for="event-color">Event colour</label
-        ><select id="event-color">
-          <option value="#28634c">Forest</option>
-          <option value="#3b6b9c">Ocean</option>
-          <option value="#9b5f2d">Amber</option>
-          <option value="#855593">Lavender</option>
-          <option value="#b44b60">Rose</option>
-        </select>
         <div id="event-options" class="event-options">
           <button
             id="event-sharing"
@@ -388,6 +390,30 @@
               >Does not repeat</span
             ><span aria-hidden="true">⌄</span>
           </button>
+          <button
+            id="event-color-fields"
+            class="event-option-button"
+            type="button"
+            aria-haspopup="dialog"
+          >
+            <span class="event-option-label">Event colour</span>
+            <span class="event-option-value event-color-value"
+              ><span
+                id="color-swatch"
+                class="color-swatch"
+                aria-hidden="true"
+              ></span
+              ><span id="color-summary">Forest</span></span
+            >
+            <span aria-hidden="true">⌄</span>
+          </button>
+          <select id="event-color" hidden aria-hidden="true" tabindex="-1">
+            <option value="#28634c">Forest</option>
+            <option value="#3b6b9c">Ocean</option>
+            <option value="#9b5f2d">Amber</option>
+            <option value="#855593">Lavender</option>
+            <option value="#b44b60">Rose</option>
+          </select>
           <select id="event-reminder" hidden aria-hidden="true" tabindex="-1">
             <option value="">No reminder</option>
             <option value="0">At the start</option>

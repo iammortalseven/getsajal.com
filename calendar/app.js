@@ -85,6 +85,7 @@
     navigationAnimation = null;
   let navigationBusy = false,
     suppressCalendarTapUntil = 0,
+    suppressFormTouchClickUntil = 0,
     phoneDateGesture = null;
   let pickerMonth = 0,
     pickerYear = 2026,
@@ -275,6 +276,18 @@
       $("upcoming").append(button);
     }
   }
+  function updateEndDate(visible) {
+    $("end-date-fields").hidden = !visible;
+    $("event-date-fields").classList.toggle("has-end-date", visible);
+    $("end-date").disabled = !visible || editingHoliday;
+    $("end-date").required = visible;
+    if (!visible) $("end-date").value = $("start-date").value;
+    $("toggle-end-date").hidden = editingHoliday;
+    $("toggle-end-date").setAttribute("aria-expanded", String(visible));
+    $("toggle-end-date").textContent = visible
+      ? "Remove end date"
+      : "Add end date";
+  }
   function updateAllDay() {
     const allDay = $("all-day").checked;
     for (const id of ["start-time", "end-time"]) {
@@ -285,8 +298,11 @@
     document.querySelectorAll(".time-label").forEach((label) => {
       label.hidden = allDay;
     });
+    $("start-time-fields").hidden = allDay;
+    $("end-time-fields").hidden = allDay;
+    $("date-help").hidden = allDay;
     $("date-help").textContent = allDay
-      ? "End date is the last day of the event, including that day."
+      ? ""
       : "Times use your device’s timezone.";
     $("event-reminder-help").textContent = "";
   }
@@ -332,6 +348,7 @@
       $("end-date").value = localDate(end);
     }
     $("start-date").value = localDate(start);
+    updateEndDate($("end-date").value !== $("start-date").value);
     $("start-time").value = localTime(start);
     $("end-time").value = localTime(end);
     $("all-day").checked = allDay;
@@ -375,6 +392,8 @@
       form.querySelectorAll("input, textarea, select").forEach((field) => {
         field.disabled = true;
       });
+    if (phoneLayout.matches && selection && phoneDateGesture)
+      suppressFormTouchClickUntil = Date.now() + 350;
     dialog.showModal();
     (readOnly ? $("cancel-dialog") : $("event-title")).focus();
     calendar.unselect();
@@ -524,6 +543,13 @@
       $("event-reminder").selectedOptions[0]?.textContent || "No reminder";
     $("repeat-summary").textContent =
       $("event-repeat").selectedOptions[0]?.textContent || "Does not repeat";
+    $("color-summary").textContent =
+      $("event-color").selectedOptions[0]?.textContent || "Forest";
+    $("color-swatch").style.backgroundColor = $("event-color").value;
+    for (const kind of ["reminder", "repeat", "color"])
+      $(`event-${kind}-fields`).title = $(`event-${kind}-fields`).disabled
+        ? $(`event-${kind}-fields`).title
+        : $(`event-${kind}`).selectedOptions[0]?.textContent || "";
   }
   let eventPickerKind = null,
     eventPickerSnapshot = null,
@@ -585,7 +611,9 @@
         ? "Share with"
         : kind === "reminder"
           ? "Remind me"
-          : "Repeat";
+          : kind === "color"
+            ? "Event colour"
+            : "Repeat";
     $("share-options").hidden = kind !== "share";
     $("event-single-options").hidden = kind === "share";
     if (kind !== "share") {
@@ -599,6 +627,16 @@
             item.value === eventPickerSnapshot,
             `event-choice-${index}`,
           );
+          if (kind === "color") {
+            const swatch = document.createElement("span");
+            swatch.className = "color-swatch";
+            swatch.setAttribute("aria-hidden", "true");
+            swatch.style.backgroundColor = item.value;
+            const name = document.createElement("span");
+            name.textContent = item.textContent;
+            button.classList.add("color-choice");
+            button.replaceChildren(swatch, name);
+          }
           if (
             kind === "repeat" &&
             row?.series_id &&
@@ -625,6 +663,7 @@
     ["event-sharing", "share"],
     ["event-reminder-fields", "reminder"],
     ["event-repeat-fields", "repeat"],
+    ["event-color-fields", "color"],
   ])
     $(id).addEventListener("click", () => openEventPicker(kind));
   keyboardList($("event-single-options"), (value) => {
@@ -1320,6 +1359,9 @@
         }
         if (["horizontal", "vertical", "cancelled"].includes(current.mode))
           suppressCalendarTapUntil = Date.now() + 350;
+        // A range can open the form before the finger lifts. Ignore the
+        // resulting compatibility click on whichever form control appears there.
+        if (dialog.open) suppressFormTouchClickUntil = Date.now() + 350;
       },
       { capture: true, passive: true },
     );
@@ -1344,6 +1386,27 @@
       },
       true,
     );
+    document.addEventListener(
+      "touchstart",
+      () => {
+        suppressFormTouchClickUntil = 0;
+      },
+      { capture: true, passive: true },
+    );
+    dialog.addEventListener(
+      "click",
+      (event) => {
+        if (
+          Date.now() < suppressFormTouchClickUntil &&
+          (event.sourceCapabilities?.firesTouchEvents ||
+            event.pointerType === "touch")
+        ) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+      },
+      true,
+    );
   }
   function closeForm() {
     if ($("event-picker-dialog").open) closeEventPicker(true, false);
@@ -1359,6 +1422,7 @@
   function clearAccountView() {
     phoneDateGesture = null;
     suppressCalendarTapUntil = 0;
+    suppressFormTouchClickUntil = 0;
     if ($("event-picker-dialog").open) closeEventPicker(true, false);
     document.body.classList.remove("calendar-home-active");
     closeAccountMenu();
@@ -1792,6 +1856,14 @@
     }
   });
   $("all-day").addEventListener("change", updateAllDay);
+  $("toggle-end-date").addEventListener("click", () => {
+    if (!editingHoliday && !writeBusy)
+      updateEndDate($("end-date-fields").hidden);
+  });
+  $("start-date").addEventListener("input", () => {
+    if ($("end-date-fields").hidden)
+      $("end-date").value = $("start-date").value;
+  });
   $("close-dialog").addEventListener("click", closeForm);
   $("cancel-dialog").addEventListener("click", closeForm);
   document
