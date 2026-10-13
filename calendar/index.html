@@ -9,12 +9,12 @@
     <link rel="apple-touch-icon" href="./icons/calendar-192.png" />
     <title>My Calendar · Sajal</title>
     <link rel="stylesheet" href="./style.css?v=20261012-mobile1" />
-    <link rel="stylesheet" href="./auth.css?v=20261013-push1" />
+    <link rel="stylesheet" href="./auth.css?v=20261013-layout1" />
     <script defer src="./vendor/fullcalendar-6.1.18.min.js"></script>
     <script defer src="./vendor/supabase-2.102.0.js"></script>
     <script defer src="./holidays.js?v=20261012-family1"></script>
     <script defer src="./push.js?v=20261013-push1"></script>
-    <script defer src="./app.js?v=20261013-push1"></script>
+    <script defer src="./app.js?v=20261013-layout1"></script>
   </head>
   <body>
     <section
@@ -183,6 +183,24 @@
         <button class="primary new-event" type="button">
           <span aria-hidden="true">+</span> New event
         </button>
+        <button
+          id="mobile-menu-toggle"
+          class="secondary"
+          type="button"
+          aria-label="Open account menu"
+          aria-expanded="false"
+          aria-controls="account-actions"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M4 6h16M4 12h16M4 18h16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
         <section class="upcoming-section" aria-labelledby="upcoming-heading">
           <div class="section-heading">
             <h2 id="upcoming-heading">Coming up</h2>
@@ -199,22 +217,25 @@
         <div class="account-bar">
           <span id="account-name"></span>
           <div>
-            <span id="sync-status" role="status">Loading…</span
-            ><button id="notification-settings" type="button" class="secondary">
-              Notifications</button
-            ><button id="family-settings" type="button" class="secondary">
-              Family</button
-            ><button id="signout" type="button" class="secondary">
-              Sign out
-            </button>
+            <span id="sync-status" role="status">Loading…</span>
+            <div id="account-actions" role="group" aria-label="Account actions">
+              <button
+                id="notification-settings"
+                type="button"
+                class="secondary"
+              >
+                Notifications</button
+              ><button id="family-settings" type="button" class="secondary">
+                Family</button
+              ><button id="signout" type="button" class="secondary">
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
         <header class="page-header">
-          <div>
-            <p class="eyebrow" id="today-label"></p>
-            <h2>Your time, thoughtfully planned.</h2>
-          </div>
-          <div class="backup-actions">
+          <p id="today-label"></p>
+          <div class="backup-actions" hidden>
             <button id="export" type="button" class="secondary">
               Export backup</button
             ><button id="import" type="button" class="secondary">Import</button
@@ -226,10 +247,6 @@
             />
           </div>
         </header>
-        <p class="info-bar">
-          <span aria-hidden="true">↗</span> Click a date to plan something.
-          Drag events to move them.
-        </p>
         <div id="notice" role="status" aria-live="polite" hidden></div>
         <div id="legacy-prompt" class="legacy-prompt" hidden>
           <p>
@@ -355,6 +372,49 @@
               Cancel</button
             ><button type="submit" class="primary">Save event</button>
           </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="date-picker-dialog" aria-labelledby="date-picker-heading">
+      <form id="date-picker-form">
+        <div class="dialog-header">
+          <h2 id="date-picker-heading">Choose month and year</h2>
+          <button
+            id="close-date-picker"
+            type="button"
+            class="icon-button"
+            aria-label="Close date picker"
+          >
+            ×
+          </button>
+        </div>
+        <div class="date-picker-columns">
+          <div>
+            <p id="month-list-label" class="date-picker-label">Month</p>
+            <div
+              id="month-options"
+              class="date-choice-list"
+              role="listbox"
+              aria-labelledby="month-list-label"
+              tabindex="0"
+            ></div>
+          </div>
+          <div>
+            <p id="year-list-label" class="date-picker-label">Year</p>
+            <div
+              id="year-options"
+              class="date-choice-list"
+              role="listbox"
+              aria-labelledby="year-list-label"
+              tabindex="0"
+            ></div>
+          </div>
+        </div>
+        <div class="confirm-actions">
+          <button id="cancel-date-picker" class="secondary" type="button">
+            Cancel
+          </button>
+          <button class="primary" type="submit">Go to date</button>
         </div>
       </form>
     </dialog>

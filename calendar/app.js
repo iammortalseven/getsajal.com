@@ -71,6 +71,19 @@
     lastSnapshot = "",
     noticeTimer,
     cloudConnected = false;
+  const phoneLayout = matchMedia(
+    "(max-width: 800px), (max-width: 1000px) and (pointer: coarse)",
+  );
+  let calendarSizeObserver = null,
+    calendarSizeFrame = 0,
+    navigationAnimation = null;
+  let navigationBusy = false,
+    suppressCalendarTapUntil = 0;
+  let pickerMonth = 0,
+    pickerYear = 2026,
+    yearStart = 1926,
+    yearEnd = 2126,
+    pickerReturnFocus = null;
   if (
     !window.supabase ||
     !window.FullCalendar ||
@@ -384,6 +397,7 @@
   }
   const push = CalendarPush.create({ rpc });
   $("notification-settings").addEventListener("click", () => push.open());
+  initCalendarNavigation();
   function explain(error) {
     if (["PGRST202", "42P01", "PGRST205"].includes(error?.code))
       return "The database is not ready. Run setup.sql in the Supabase SQL Editor first.";
@@ -498,7 +512,7 @@
       timeZone: "local",
       locale: "en-gb",
       headerToolbar: {
-        left: "prev,next today",
+        left: "today",
         center: "title",
         right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
       },
@@ -509,13 +523,19 @@
         day: "Day",
         list: "Agenda",
       },
-      height: "auto",
+      height: "100%",
+      expandRows: true,
       selectable: true,
       selectMirror: true,
       editable: true,
       eventResizableFromStart: true,
       nowIndicator: true,
-      dayMaxEvents: 3,
+      dayMaxEvents: true,
+      moreLinkText: (count) =>
+        phoneLayout.matches ? `+${count}` : `+${count} more`,
+      moreLinkDidMount: (info) =>
+        info.el.setAttribute("aria-label", `Show ${info.num} more events`),
+      views: { timeGrid: { dayMaxEventRows: 2 } },
       fixedWeekCount: false,
       displayEventEnd: true,
       scrollTime: "08:00:00",
@@ -540,9 +560,17 @@
       eventsSet: () => {
         if (calendar) renderUpcoming();
       },
-      select: (info) => openForm(null, info),
+      datesSet: (info) => renderCalendarTitle(info.view),
+      select: (info) => {
+        if (Date.now() < suppressCalendarTapUntil) {
+          calendar?.unselect();
+          return;
+        }
+        openForm(null, info);
+      },
       eventClick: (info) => {
         info.jsEvent.preventDefault();
+        if (Date.now() < suppressCalendarTapUntil) return;
         openForm(info.event);
       },
       eventAllow: () => !writeBusy,
@@ -583,6 +611,398 @@
     });
     replacePersonalEvents();
     calendar.render();
+    calendarSizeObserver?.disconnect();
+    let previousSize = "";
+    calendarSizeObserver = new ResizeObserver(() => {
+      const card = $("calendar").parentElement;
+      const size = `${card.clientWidth}:${card.clientHeight}`;
+      if (size === previousSize) return;
+      previousSize = size;
+      cancelAnimationFrame(calendarSizeFrame);
+      calendarSizeFrame = requestAnimationFrame(() => calendar?.updateSize());
+    });
+    calendarSizeObserver.observe($("calendar").parentElement);
+  }
+  function renderCalendarTitle(view) {
+    const title = $("calendar").querySelector(".fc-toolbar-title");
+    if (!title) return;
+    const makeButton = (label, part) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "calendar-title-button";
+      button.dataset.pickerPart = part;
+      button.textContent = label;
+      button.setAttribute("aria-label", `Choose ${part}, currently ${label}`);
+      button.addEventListener("click", () => openDatePicker(part, button));
+      return button;
+    };
+    const date = calendar?.getDate() || view.currentStart;
+    if (view.type === "dayGridMonth")
+      title.replaceChildren(
+        makeButton(
+          date.toLocaleDateString("en-AU", { month: "long" }),
+          "month",
+        ),
+        document.createTextNode(" "),
+        makeButton(String(date.getFullYear()), "year"),
+      );
+    else title.replaceChildren(makeButton(view.title, "month and year"));
+  }
+  function closeAccountMenu(restoreFocus = false) {
+    $("account-actions").removeAttribute("data-open");
+    $("mobile-menu-toggle").setAttribute("aria-expanded", "false");
+    $("mobile-menu-toggle").setAttribute("aria-label", "Open account menu");
+    if (restoreFocus) $("mobile-menu-toggle").focus();
+  }
+  function canNavigateMonth() {
+    return (
+      calendar?.view.type === "dayGridMonth" &&
+      !writeBusy &&
+      !dragging &&
+      !document.querySelector("dialog[open]") &&
+      !$("account-actions").hasAttribute("data-open")
+    );
+  }
+  function navigateMonth(direction) {
+    if (!canNavigateMonth() || navigationBusy) return false;
+    const date = calendar.getDate(),
+      year = date.getFullYear(),
+      month = date.getMonth();
+    if (
+      (direction < 0 && year <= 1 && month === 0) ||
+      (direction > 0 && year >= 9999 && month === 11)
+    )
+      return false;
+    navigationBusy = true;
+    calendar.unselect();
+    direction > 0 ? calendar.next() : calendar.prev();
+    const view = $("calendar").querySelector(".fc-view-harness");
+    if (!view || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      navigationBusy = false;
+      return true;
+    }
+    navigationAnimation?.cancel();
+    navigationAnimation = view.animate(
+      [
+        { transform: `translateX(${direction * 14}px)`, opacity: 0.7 },
+        { transform: "translateX(0)", opacity: 1 },
+      ],
+      { duration: 120, easing: "cubic-bezier(.2,.7,.2,1)" },
+    );
+    navigationAnimation.finished
+      .catch(() => {})
+      .finally(() => {
+        navigationBusy = false;
+      });
+    return true;
+  }
+  function option(value, label, selected, prefix) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("role", "option");
+    button.tabIndex = -1;
+    button.id = `${prefix}-${value}`;
+    button.dataset.value = value;
+    button.setAttribute("aria-selected", String(selected));
+    button.textContent = label;
+    return button;
+  }
+  function renderMonthOptions() {
+    $("month-options").replaceChildren(
+      ...Array.from({ length: 12 }, (_, month) =>
+        option(
+          month,
+          new Date(2026, month, 1).toLocaleDateString("en-AU", {
+            month: "long",
+          }),
+          month === pickerMonth,
+          "date-month",
+        ),
+      ),
+    );
+    $("month-options").setAttribute(
+      "aria-activedescendant",
+      `date-month-${pickerMonth}`,
+    );
+  }
+  function renderYearOptions() {
+    const fragment = document.createDocumentFragment();
+    for (let year = yearStart; year <= yearEnd; year++)
+      fragment.append(
+        option(year, String(year), year === pickerYear, "date-year"),
+      );
+    $("year-options").replaceChildren(fragment);
+    $("year-options").setAttribute(
+      "aria-activedescendant",
+      `date-year-${pickerYear}`,
+    );
+  }
+  function chooseDatePart(part, value, scroll = false) {
+    const list = $(part === "month" ? "month-options" : "year-options");
+    if (part === "month") pickerMonth = Math.max(0, Math.min(11, value));
+    else {
+      pickerYear = Math.max(1, Math.min(9999, value));
+      if (pickerYear < yearStart || pickerYear > yearEnd) {
+        yearStart = Math.max(1, pickerYear - 100);
+        yearEnd = Math.min(9999, pickerYear + 100);
+        renderYearOptions();
+      }
+    }
+    const chosen = part === "month" ? pickerMonth : pickerYear;
+    for (const item of list.children)
+      item.setAttribute(
+        "aria-selected",
+        String(Number(item.dataset.value) === chosen),
+      );
+    const item = list.querySelector(`[data-value="${chosen}"]`);
+    list.setAttribute("aria-activedescendant", item.id);
+    if (scroll) item.scrollIntoView({ block: "center", behavior: "instant" });
+  }
+  function openDatePicker(part, trigger) {
+    if (!calendar || writeBusy) return;
+    closeAccountMenu();
+    const date = calendar.getDate();
+    pickerMonth = date.getMonth();
+    pickerYear = date.getFullYear();
+    yearStart = Math.max(1, pickerYear - 100);
+    yearEnd = Math.min(9999, pickerYear + 100);
+    pickerReturnFocus = trigger;
+    renderMonthOptions();
+    renderYearOptions();
+    $("date-picker-dialog").showModal();
+    chooseDatePart("month", pickerMonth, true);
+    chooseDatePart("year", pickerYear, true);
+    $(part === "year" ? "year-options" : "month-options").focus({
+      preventScroll: true,
+    });
+  }
+  function initCalendarNavigation() {
+    $("mobile-menu-toggle").addEventListener("click", () => {
+      const actions = $("account-actions");
+      if (actions.hasAttribute("data-open")) {
+        closeAccountMenu();
+        return;
+      }
+      document.documentElement.style.setProperty(
+        "--phone-menu-top",
+        `${$("mobile-menu-toggle").getBoundingClientRect().bottom + 8}px`,
+      );
+      actions.dataset.open = "true";
+      $("mobile-menu-toggle").setAttribute("aria-expanded", "true");
+      $("mobile-menu-toggle").setAttribute("aria-label", "Close account menu");
+    });
+    document.addEventListener("click", (event) => {
+      if (
+        !$("account-actions").contains(event.target) &&
+        !$("mobile-menu-toggle").contains(event.target)
+      )
+        closeAccountMenu();
+    });
+    $("account-actions").addEventListener("click", (event) => {
+      if (event.target.closest("button")) closeAccountMenu();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (
+        event.key === "Escape" &&
+        $("account-actions").hasAttribute("data-open")
+      ) {
+        event.preventDefault();
+        closeAccountMenu(true);
+      }
+    });
+    phoneLayout.addEventListener("change", () => closeAccountMenu());
+    for (const part of ["month", "year"]) {
+      const list = $(part === "month" ? "month-options" : "year-options");
+      list.addEventListener("click", (event) => {
+        const item = event.target.closest('[role="option"]');
+        if (item) {
+          chooseDatePart(part, Number(item.dataset.value));
+          list.focus({ preventScroll: true });
+        }
+      });
+      list.addEventListener("keydown", (event) => {
+        let value = part === "month" ? pickerMonth : pickerYear;
+        if (event.key === "ArrowDown") value++;
+        else if (event.key === "ArrowUp") value--;
+        else if (event.key === "PageDown") value += 5;
+        else if (event.key === "PageUp") value -= 5;
+        else if (event.key === "Home") value = part === "month" ? 0 : 1;
+        else if (event.key === "End") value = part === "month" ? 11 : 9999;
+        else return;
+        event.preventDefault();
+        chooseDatePart(part, value, true);
+      });
+    }
+    $("year-options").addEventListener("scroll", () => {
+      const list = $("year-options"),
+        before = list.scrollTop;
+      if (before < 150 && yearStart > 1) {
+        const count = Math.min(50, yearStart - 1),
+          rowHeight = list.firstElementChild.getBoundingClientRect().height;
+        yearStart -= count;
+        renderYearOptions();
+        list.scrollTop = before + count * rowHeight;
+      } else if (
+        list.scrollHeight - list.clientHeight - before < 150 &&
+        yearEnd < 9999
+      ) {
+        yearEnd = Math.min(9999, yearEnd + 50);
+        renderYearOptions();
+        list.scrollTop = before;
+      }
+    });
+    for (const id of ["close-date-picker", "cancel-date-picker"])
+      $(id).addEventListener("click", () => $("date-picker-dialog").close());
+    $("date-picker-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      $("date-picker-dialog").close();
+      calendar?.gotoDate(
+        `${String(pickerYear).padStart(4, "0")}-${pad(pickerMonth + 1)}-01`,
+      );
+    });
+    $("date-picker-dialog").addEventListener("close", () => {
+      if (pickerReturnFocus?.isConnected)
+        pickerReturnFocus.focus({ preventScroll: true });
+      else
+        $("calendar")
+          .querySelector(".calendar-title-button")
+          ?.focus({ preventScroll: true });
+    });
+    const root = $("calendar");
+    let wheelTime = 0,
+      wheelDistance = 0,
+      wheelHandled = false;
+    root.addEventListener(
+      "wheel",
+      (event) => {
+        if (
+          phoneLayout.matches ||
+          !canNavigateMonth() ||
+          event.ctrlKey ||
+          !event.target.closest(".fc-view-harness") ||
+          event.target.closest(".fc-popover")
+        )
+          return;
+        if (Math.abs(event.deltaX) > Math.abs(event.deltaY) || !event.deltaY)
+          return;
+        event.preventDefault();
+        const now = performance.now();
+        if (now - wheelTime > 180) {
+          wheelDistance = 0;
+          wheelHandled = false;
+        }
+        wheelTime = now;
+        wheelDistance +=
+          event.deltaY *
+          (event.deltaMode === 1
+            ? 16
+            : event.deltaMode === 2
+              ? root.clientHeight
+              : 1);
+        if (
+          !wheelHandled &&
+          Math.abs(wheelDistance) >= 35 &&
+          navigateMonth(Math.sign(wheelDistance))
+        )
+          wheelHandled = true;
+      },
+      { passive: false },
+    );
+    let swipe = null;
+    root.addEventListener(
+      "touchstart",
+      (event) => {
+        if (
+          event.touches.length !== 1 ||
+          !phoneLayout.matches ||
+          !canNavigateMonth() ||
+          !event.target.closest(".fc-daygrid-day") ||
+          event.target.closest(
+            ".fc-event,.fc-popover,.fc-daygrid-more-link,button,input,select",
+          )
+        )
+          return;
+        const touch = event.touches[0];
+        swipe = {
+          id: touch.identifier,
+          x: touch.clientX,
+          y: touch.clientY,
+          started: performance.now(),
+          active: false,
+        };
+      },
+      { capture: true, passive: true },
+    );
+    root.addEventListener(
+      "touchmove",
+      (event) => {
+        if (!swipe || event.touches.length !== 1) {
+          swipe = null;
+          return;
+        }
+        const touch = Array.from(event.touches).find(
+          (item) => item.identifier === swipe.id,
+        );
+        if (!touch) return;
+        const dx = touch.clientX - swipe.x,
+          dy = touch.clientY - swipe.y;
+        if (
+          Math.abs(dx) > 12 &&
+          Math.abs(dx) > Math.abs(dy) * 1.4 &&
+          !dragging
+        ) {
+          swipe.active = true;
+          suppressCalendarTapUntil = Date.now() + 350;
+          calendar?.unselect();
+          if (event.cancelable) event.preventDefault();
+        }
+      },
+      { capture: true, passive: false },
+    );
+    root.addEventListener(
+      "touchend",
+      (event) => {
+        if (!swipe) return;
+        const touch = Array.from(event.changedTouches).find(
+          (item) => item.identifier === swipe.id,
+        );
+        if (!touch) return;
+        const current = swipe;
+        swipe = null;
+        const dx = touch.clientX - current.x,
+          dy = touch.clientY - current.y;
+        if (
+          current.active &&
+          Math.abs(dx) >= 48 &&
+          Math.abs(dx) > Math.abs(dy) * 1.4 &&
+          performance.now() - current.started < 800
+        ) {
+          suppressCalendarTapUntil = Date.now() + 350;
+          navigateMonth(dx < 0 ? 1 : -1);
+        }
+      },
+      { capture: true, passive: true },
+    );
+    root.addEventListener(
+      "touchcancel",
+      () => {
+        swipe = null;
+      },
+      { capture: true, passive: true },
+    );
+    root.addEventListener(
+      "click",
+      (event) => {
+        if (
+          Date.now() < suppressCalendarTapUntil &&
+          event.target.closest(".fc-view-harness")
+        ) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+      },
+      true,
+    );
   }
   function closeForm() {
     dialog.close();
@@ -594,7 +1014,18 @@
     editingHoliday = false;
   }
   function clearAccountView() {
-    for (const id of ["event-dialog", "confirm-dialog", "family-dialog"])
+    document.body.classList.remove("calendar-home-active");
+    closeAccountMenu();
+    calendarSizeObserver?.disconnect();
+    cancelAnimationFrame(calendarSizeFrame);
+    navigationAnimation?.cancel();
+    navigationBusy = false;
+    for (const id of [
+      "event-dialog",
+      "confirm-dialog",
+      "family-dialog",
+      "date-picker-dialog",
+    ])
       if ($(id).open) $(id).close();
     editingId = null;
     editingVersion = null;
@@ -651,6 +1082,8 @@
           (ownReminders || []).map((row) => [row.event_id, row]),
         );
         if (!context.family) {
+          document.body.classList.remove("calendar-home-active");
+          calendarSizeObserver?.disconnect();
           calendar?.destroy();
           calendar = null;
           records.clear();
@@ -663,6 +1096,7 @@
         $("family-setup-screen").hidden = true;
         $("login-screen").hidden = true;
         $("calendar-app").hidden = false;
+        document.body.classList.add("calendar-home-active");
         $("account-name").textContent =
           `${context.profile.display_name} · ${context.family.name}`;
         const snapshot = JSON.stringify([context, rows, ownReminders]);
@@ -1242,14 +1676,12 @@
       if (requestEpoch === epoch) setBusy(false);
     }
   });
-  $("today-label").textContent = new Date()
-    .toLocaleDateString("en-AU", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    })
-    .toUpperCase();
+  $("today-label").textContent = new Date().toLocaleDateString("en-AU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
   $("timezone-label").textContent =
     `Device timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone || "local"} · Account sync`;
   // Foreground polling catches edits, deletions and removed sharing permissions.

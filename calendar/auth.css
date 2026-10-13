@@ -1,4 +1,4 @@
-/* Additions for accounts and sharing only. Existing style.css is unchanged. */
+/* Accounts, notifications and calendar layout. Existing style.css is unchanged. */
 .auth-screen {
   min-height: 100dvh;
   display: grid;
@@ -215,5 +215,458 @@
   }
   #invite-code {
     font-size: 14px;
+  }
+}
+
+/* Compact calendar home. Account and event dialogs keep their own scrolling. */
+body.calendar-home-active {
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+#calendar-app {
+  --calendar-heading-size: 25px;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+#calendar-app .main-panel {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#calendar-app .sidebar {
+  height: 100%;
+  min-height: 0;
+}
+#calendar-app .upcoming-section {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+#calendar-app .sidebar-bottom {
+  flex-shrink: 0;
+}
+#calendar-app .page-header {
+  display: block;
+  flex-shrink: 0;
+  margin: 0 0 18px;
+  text-align: center;
+}
+#today-label,
+#calendar-app .fc-toolbar-title {
+  font-family: Georgia, serif;
+  font-size: var(--calendar-heading-size);
+  font-weight: 400;
+  letter-spacing: -0.6px;
+  line-height: 1.25;
+}
+#today-label {
+  margin: 0;
+}
+#calendar-app .calendar-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#calendar {
+  min-height: 0;
+  height: 100%;
+}
+#calendar-app .fc-header-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  flex-shrink: 0;
+  margin-bottom: 18px;
+}
+#calendar-app .fc-header-toolbar > .fc-toolbar-chunk:first-child {
+  justify-content: flex-start;
+}
+#calendar-app .fc-header-toolbar > .fc-toolbar-chunk:last-child {
+  justify-content: flex-end;
+}
+@media (min-width: 801px) and (max-width: 960px) and (pointer: fine) {
+  #calendar-app .fc-header-toolbar > .fc-toolbar-chunk:last-child {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+}
+#calendar-app .fc-daygrid-day-frame {
+  min-height: 0;
+}
+#calendar-app .fc-daygrid-day-events {
+  min-height: 0;
+}
+#calendar-app .fc-dayGridMonth-view {
+  touch-action: pan-y pinch-zoom;
+}
+#calendar-app .fc-daygrid-day {
+  touch-action: pan-y pinch-zoom;
+}
+#calendar-app .page-footer {
+  flex-shrink: 0;
+  min-width: 0;
+}
+#calendar-app .page-footer span {
+  overflow-wrap: anywhere;
+}
+#account-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+#mobile-menu-toggle {
+  display: none;
+}
+.calendar-title-button {
+  padding: 1px 2px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+.calendar-title-button:hover {
+  color: var(--forest);
+  text-decoration: underline;
+  text-underline-offset: 5px;
+  text-decoration-thickness: 1px;
+}
+#notice {
+  position: fixed;
+  z-index: 20;
+  top: 88px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(620px, calc(100vw - 32px));
+  box-shadow: 0 8px 24px #253c3315;
+}
+#legacy-prompt {
+  display: none !important;
+}
+dialog {
+  overscroll-behavior: contain;
+}
+#calendar-app .fc-popover-body {
+  max-height: min(320px, 55dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.date-picker-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.date-picker-label {
+  font-size: 12px;
+  font-weight: 650;
+  margin: 0 0 8px;
+}
+.date-choice-list {
+  height: min(264px, 42dvh);
+  min-height: 100px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 4px;
+  scrollbar-width: thin;
+}
+.date-choice-list [role="option"] {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  text-align: center;
+}
+.date-choice-list [aria-selected="true"] {
+  background: var(--forest);
+  color: white;
+}
+.date-choice-list [role="option"]:hover:not([aria-selected="true"]) {
+  background: #f0f5e9;
+}
+.date-choice-list:focus-visible {
+  outline: 3px solid #96b982;
+  outline-offset: 3px;
+}
+@media (max-width: 1100px) {
+  #calendar-app {
+    --calendar-heading-size: 22px;
+  }
+}
+@media (max-height: 760px) and (min-width: 801px) {
+  #calendar-app .main-panel {
+    padding-top: 22px;
+    padding-bottom: 8px;
+  }
+  #calendar-app .sidebar {
+    padding-top: 24px;
+    padding-bottom: 18px;
+  }
+  #calendar-app .sidebar-intro {
+    margin: 24px 0 20px;
+  }
+  #calendar-app .upcoming-section {
+    margin-top: 24px;
+  }
+  #calendar-app .calendar-card {
+    padding: 18px;
+  }
+  #calendar-app .page-footer {
+    padding-top: 12px;
+    padding-bottom: 8px;
+  }
+}
+@media (max-width: 800px), (max-width: 1000px) and (pointer: coarse) {
+  #calendar-app {
+    --calendar-heading-size: 23px;
+    flex-direction: column;
+    display: flex;
+  }
+  #calendar-app[hidden] {
+    display: none !important;
+  }
+  #calendar-app .sidebar {
+    width: 100%;
+    height: auto;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  #calendar-app .sidebar-intro,
+  #calendar-app .upcoming-section,
+  #calendar-app .sidebar-bottom {
+    display: none;
+  }
+  #calendar-app .brand {
+    flex: 1;
+    min-width: 0;
+    gap: 9px;
+    font-size: 11px;
+  }
+  #calendar-app .brand > span:last-child {
+    min-width: 0;
+  }
+  #calendar-app .brand-icon {
+    width: 35px;
+    height: 35px;
+    flex-shrink: 0;
+    font-size: 23px;
+  }
+  #calendar-app .brand-subtitle {
+    font-size: 9px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #calendar-app .new-event {
+    width: auto;
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 8px 11px;
+    font-size: 13px;
+  }
+  #mobile-menu-toggle {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  #calendar-app .main-panel {
+    width: 100%;
+    height: auto;
+    flex: 1;
+    padding: 12px 12px 0;
+  }
+  #calendar-app .account-bar {
+    margin-bottom: 12px;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+  #account-name {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  #calendar-app .account-bar > div {
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+  }
+  #account-actions {
+    display: none;
+    position: fixed;
+    z-index: 30;
+    top: var(--phone-menu-top, 74px);
+    right: 14px;
+    width: 184px;
+    padding: 6px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fffef9;
+    box-shadow: 0 10px 28px #253c3320;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  #account-actions[data-open="true"] {
+    display: flex;
+  }
+  #account-actions button {
+    min-height: 44px;
+    border: 0;
+    text-align: left;
+    background: transparent;
+  }
+  #account-actions button:hover {
+    background: #f0f5e9;
+  }
+  #calendar-app .page-header {
+    margin-bottom: 12px;
+  }
+  #calendar-app .calendar-card {
+    padding: 12px 10px;
+  }
+  #calendar-app .fc-header-toolbar {
+    display: flex;
+    position: relative;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  #calendar-app .fc-toolbar-chunk {
+    width: 100%;
+    justify-content: center;
+  }
+  #calendar-app .fc-toolbar-chunk:nth-child(2) {
+    order: 1;
+    min-height: 44px;
+    padding: 0 50px;
+  }
+  #calendar-app .fc-toolbar-chunk:first-child {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: auto;
+  }
+  #calendar-app .fc-header-toolbar > .fc-toolbar-chunk:last-child {
+    order: 2;
+    justify-content: center;
+  }
+  #calendar-app .fc-button {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+  #calendar-app .fc-col-header-cell {
+    padding: 7px 0;
+  }
+  #calendar-app .fc-daygrid-day-number {
+    padding: 5px 6px;
+  }
+  #calendar-app .fc-daygrid-day-bottom {
+    margin: 1px 2px;
+  }
+  #calendar-app .page-footer {
+    font-size: 10px;
+    padding: 10px 2px;
+  }
+  #calendar-app .page-footer span:last-child {
+    display: none;
+  }
+  #notice {
+    top: 76px;
+  }
+}
+@media (max-width: 360px) {
+  #calendar-app {
+    --calendar-heading-size: 22px;
+  }
+}
+@media (max-height: 480px) and (max-width: 1000px) and (min-width: 600px) {
+  #calendar-app {
+    --calendar-heading-size: 20px;
+  }
+  #calendar-app .sidebar {
+    padding: 6px 12px;
+  }
+  #calendar-app .brand-subtitle {
+    display: none;
+  }
+  #calendar-app .main-panel {
+    padding-top: 6px;
+  }
+  #calendar-app .account-bar {
+    margin-bottom: 6px;
+    font-size: 10px;
+  }
+  #calendar-app .page-header {
+    margin-bottom: 6px;
+  }
+  #calendar-app .calendar-card {
+    padding: 8px;
+  }
+  #calendar-app .fc-header-toolbar {
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  #calendar-app .fc-toolbar-chunk:first-child {
+    position: static;
+    order: 0;
+    width: auto;
+  }
+  #calendar-app .fc-toolbar-chunk:nth-child(2) {
+    order: 1;
+    width: auto;
+    min-height: 34px;
+    padding: 0;
+    flex: 1;
+  }
+  #calendar-app .fc-toolbar-chunk:last-child {
+    order: 2;
+    width: auto;
+  }
+  #calendar-app .fc-button {
+    min-height: 34px;
+    padding: 6px 9px;
+  }
+  #calendar-app .fc-col-header-cell {
+    padding: 4px 0;
+  }
+  #calendar-app .fc-daygrid-day-number {
+    padding: 1px 5px;
+    font-size: 11px;
+    line-height: 1.1;
+  }
+  #calendar-app .fc-daygrid-day-events {
+    margin: 0 1px;
+  }
+  #calendar-app .fc-daygrid-more-link {
+    font-size: 9px;
+    line-height: 1.15;
+  }
+  #calendar-app .page-footer {
+    padding: 6px 2px;
   }
 }
