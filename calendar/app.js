@@ -84,7 +84,8 @@
     calendarSizeFrame = 0,
     navigationAnimation = null;
   let navigationBusy = false,
-    suppressCalendarTapUntil = 0;
+    suppressCalendarTapUntil = 0,
+    phoneDateGesture = null;
   let pickerMonth = 0,
     pickerYear = 2026,
     yearStart = 1926,
@@ -823,11 +824,31 @@
         queueViewExpansion();
       },
       select: (info) => {
-        if (Date.now() < suppressCalendarTapUntil) {
+        if (dialog.open) return;
+        if (
+          Date.now() < suppressCalendarTapUntil ||
+          phoneGestureBlocksCreation(info.jsEvent, "range")
+        ) {
           calendar?.unselect();
           return;
         }
         openForm(null, info);
+      },
+      dateClick: (info) => {
+        if (
+          !phoneLayout.matches ||
+          writeBusy ||
+          dragging ||
+          document.querySelector("dialog[open]") ||
+          $("account-actions").hasAttribute("data-open") ||
+          Date.now() < suppressCalendarTapUntil ||
+          phoneGestureBlocksCreation(info.jsEvent, "tap")
+        )
+          return;
+        const end = new Date(info.date);
+        if (info.allDay) end.setDate(end.getDate() + 1);
+        else end.setTime(end.getTime() + 3600000);
+        openForm(null, { start: info.date, end, allDay: info.allDay });
       },
       eventClick: (info) => {
         info.jsEvent.preventDefault();
@@ -908,6 +929,18 @@
         makeButton(String(date.getFullYear()), "year"),
       );
     else title.replaceChildren(makeButton(view.title, "month and year"));
+  }
+  function phoneGestureBlocksCreation(event, kind) {
+    const touch =
+      event?.type?.startsWith("touch") ||
+      event?.pointerType === "touch" ||
+      event?.sourceCapabilities?.firesTouchEvents;
+    return Boolean(
+      phoneLayout.matches &&
+        touch &&
+        phoneDateGesture &&
+        phoneDateGesture.mode !== kind,
+    );
   }
   function closeAccountMenu(restoreFocus = false) {
     $("account-actions").removeAttribute("data-open");
@@ -1182,27 +1215,41 @@
       },
       { passive: false },
     );
-    let swipe = null;
     root.addEventListener(
       "touchstart",
       (event) => {
+        if (!phoneLayout.matches) return;
+        phoneDateGesture = null;
+        suppressCalendarTapUntil = 0;
+        if (event.touches.length !== 1) {
+          phoneDateGesture = { mode: "cancelled" };
+          return;
+        }
         if (
-          event.touches.length !== 1 ||
-          !phoneLayout.matches ||
-          !canNavigateMonth() ||
-          !event.target.closest(".fc-daygrid-day") ||
+          !calendar ||
+          writeBusy ||
+          dragging ||
+          document.querySelector("dialog[open]") ||
+          $("account-actions").hasAttribute("data-open") ||
+          !event.target.closest(
+            ".fc-daygrid-day,.fc-timegrid-col,.fc-timegrid-slot",
+          ) ||
           event.target.closest(
             ".fc-event,.fc-popover,.fc-daygrid-more-link,button,input,select",
           )
         )
           return;
         const touch = event.touches[0];
-        swipe = {
+        phoneDateGesture = {
           id: touch.identifier,
           x: touch.clientX,
           y: touch.clientY,
           started: performance.now(),
-          active: false,
+          mode: "pending",
+          rangeDelay:
+            calendar.getOption("selectLongPressDelay") ??
+            calendar.getOption("longPressDelay") ??
+            1000,
         };
       },
       { capture: true, passive: true },
@@ -1210,25 +1257,36 @@
     root.addEventListener(
       "touchmove",
       (event) => {
-        if (!swipe || event.touches.length !== 1) {
-          swipe = null;
+        const gesture = phoneDateGesture;
+        if (!gesture) return;
+        if (event.touches.length !== 1) {
+          gesture.mode = "cancelled";
+          suppressCalendarTapUntil = Date.now() + 350;
           return;
         }
         const touch = Array.from(event.touches).find(
-          (item) => item.identifier === swipe.id,
+          (item) => item.identifier === gesture.id,
         );
         if (!touch) return;
-        const dx = touch.clientX - swipe.x,
-          dy = touch.clientY - swipe.y;
-        if (
-          Math.abs(dx) > 12 &&
-          Math.abs(dx) > Math.abs(dy) * 1.4 &&
-          !dragging
-        ) {
-          swipe.active = true;
+        const dx = touch.clientX - gesture.x,
+          dy = touch.clientY - gesture.y;
+        if (gesture.mode === "pending") {
+          if (performance.now() - gesture.started >= gesture.rangeDelay)
+            gesture.mode = "range";
+          else if (Math.max(Math.abs(dx), Math.abs(dy)) > 8)
+            gesture.mode =
+              Math.abs(dx) > Math.abs(dy) * 1.4 ? "horizontal" : "vertical";
+        }
+        // Once a quick gesture moves, it cannot turn into a tap or long-press selection.
+        if (gesture.mode === "horizontal" || gesture.mode === "vertical") {
           suppressCalendarTapUntil = Date.now() + 350;
           calendar?.unselect();
-          if (event.cancelable) event.preventDefault();
+          if (
+            event.cancelable &&
+            (gesture.mode === "horizontal" ||
+              calendar?.view.type === "dayGridMonth")
+          )
+            event.preventDefault();
         }
       },
       { capture: true, passive: false },
@@ -1236,17 +1294,23 @@
     root.addEventListener(
       "touchend",
       (event) => {
-        if (!swipe) return;
+        const current = phoneDateGesture;
+        if (!current) return;
         const touch = Array.from(event.changedTouches).find(
-          (item) => item.identifier === swipe.id,
+          (item) => item.identifier === current.id,
         );
         if (!touch) return;
-        const current = swipe;
-        swipe = null;
         const dx = touch.clientX - current.x,
           dy = touch.clientY - current.y;
+        if (current.mode === "pending") {
+          if (performance.now() - current.started >= current.rangeDelay)
+            current.mode = "range";
+          else
+            current.mode =
+              Math.max(Math.abs(dx), Math.abs(dy)) <= 8 ? "tap" : "vertical";
+        }
         if (
-          current.active &&
+          current.mode === "horizontal" &&
           Math.abs(dx) >= 48 &&
           Math.abs(dx) > Math.abs(dy) * 1.4 &&
           performance.now() - current.started < 800
@@ -1254,13 +1318,16 @@
           suppressCalendarTapUntil = Date.now() + 350;
           navigateMonth(dx < 0 ? 1 : -1);
         }
+        if (["horizontal", "vertical", "cancelled"].includes(current.mode))
+          suppressCalendarTapUntil = Date.now() + 350;
       },
       { capture: true, passive: true },
     );
     root.addEventListener(
       "touchcancel",
       () => {
-        swipe = null;
+        if (phoneDateGesture) phoneDateGesture.mode = "cancelled";
+        suppressCalendarTapUntil = Date.now() + 350;
       },
       { capture: true, passive: true },
     );
@@ -1290,6 +1357,8 @@
     editingHoliday = false;
   }
   function clearAccountView() {
+    phoneDateGesture = null;
+    suppressCalendarTapUntil = 0;
     if ($("event-picker-dialog").open) closeEventPicker(true, false);
     document.body.classList.remove("calendar-home-active");
     closeAccountMenu();
