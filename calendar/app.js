@@ -663,36 +663,46 @@
       !$("account-actions").hasAttribute("data-open")
     );
   }
-  function navigateMonth(direction) {
-    if (!canNavigateMonth() || navigationBusy) return false;
+  function navigateMonth(direction, steps = 1, interrupt = false) {
+    if (!canNavigateMonth() || (navigationBusy && !interrupt)) return false;
     const date = calendar.getDate(),
-      year = date.getFullYear(),
-      month = date.getMonth();
-    if (
-      (direction < 0 && year <= 1 && month === 0) ||
-      (direction > 0 && year >= 9999 && month === 11)
-    )
-      return false;
+      currentMonth = date.getFullYear() * 12 + date.getMonth(),
+      nextMonth = Math.max(
+        12,
+        Math.min(9999 * 12 + 11, currentMonth + direction * steps),
+      );
+    if (nextMonth === currentMonth) return false;
     navigationBusy = true;
     calendar.unselect();
-    direction > 0 ? calendar.next() : calendar.prev();
+    calendar.gotoDate(
+      `${String(Math.floor(nextMonth / 12)).padStart(4, "0")}-${pad((nextMonth % 12) + 1)}-01`,
+    );
     const view = $("calendar").querySelector(".fc-view-harness");
     if (!view || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      navigationAnimation?.cancel();
+      navigationAnimation = null;
       navigationBusy = false;
       return true;
     }
+    // Continue from the current frame when new wheel input interrupts a transition.
+    const running = navigationAnimation?.playState === "running";
+    const currentStyle = running ? getComputedStyle(view) : null;
+    const from = running
+      ? { transform: currentStyle.transform, opacity: currentStyle.opacity }
+      : { transform: `translateX(${direction * 14}px)`, opacity: 0.7 };
     navigationAnimation?.cancel();
-    navigationAnimation = view.animate(
-      [
-        { transform: `translateX(${direction * 14}px)`, opacity: 0.7 },
-        { transform: "translateX(0)", opacity: 1 },
-      ],
+    const animation = view.animate(
+      [from, { transform: "translateX(0)", opacity: 1 }],
       { duration: 120, easing: "cubic-bezier(.2,.7,.2,1)" },
     );
-    navigationAnimation.finished
+    navigationAnimation = animation;
+    animation.finished
       .catch(() => {})
       .finally(() => {
-        navigationBusy = false;
+        if (navigationAnimation === animation) {
+          navigationAnimation = null;
+          navigationBusy = false;
+        }
       });
     return true;
   }
@@ -869,9 +879,7 @@
           ?.focus({ preventScroll: true });
     });
     const root = $("calendar");
-    let wheelTime = -Infinity,
-      wheelStepTime = -Infinity,
-      wheelDistance = 0,
+    let wheelRemainder = 0,
       wheelDirection = 0;
     root.addEventListener(
       "wheel",
@@ -882,34 +890,33 @@
           event.ctrlKey ||
           !event.target.closest(".fc-view-harness") ||
           event.target.closest(".fc-popover")
-        )
-          return;
-        if (Math.abs(event.deltaX) > Math.abs(event.deltaY) || !event.deltaY)
-          return;
-        event.preventDefault();
-        const now = performance.now();
-        const direction = Math.sign(event.deltaY);
-        if (now - wheelTime > 180 || direction !== wheelDirection) {
-          wheelDistance = 0;
-        }
-        wheelTime = now;
-        wheelDirection = direction;
-        const delta =
-          event.deltaY *
-          (event.deltaMode === 1
-            ? 16
-            : event.deltaMode === 2
-              ? root.clientHeight
-              : 1);
-        // Keep responding while the wheel moves, without queuing months after it stops.
-        wheelDistance = Math.max(-70, Math.min(70, wheelDistance + delta));
-        if (
-          now - wheelStepTime >= 150 &&
-          Math.abs(wheelDistance) >= 35 &&
-          navigateMonth(Math.sign(wheelDistance))
         ) {
-          wheelDistance = 0;
-          wheelStepTime = now;
+          wheelRemainder = 0;
+          wheelDirection = 0;
+          return;
+        }
+        if (Math.abs(event.deltaX) > Math.abs(event.deltaY) || !event.deltaY) {
+          wheelRemainder = 0;
+          wheelDirection = 0;
+          return;
+        }
+        event.preventDefault();
+        const direction = Math.sign(event.deltaY);
+        if (direction !== wheelDirection) {
+          wheelRemainder = 0;
+        }
+        wheelDirection = direction;
+        // One standard wheel notch is about 100 pixels or three lines.
+        // Fractional movement accumulates; faster rolls advance more months immediately.
+        wheelRemainder +=
+          event.deltaY *
+          (event.deltaMode === 1 ? 1 / 3 : event.deltaMode === 2 ? 1 : 1 / 100);
+        const steps = Math.trunc(
+          wheelRemainder + Math.sign(wheelRemainder) * 1e-7,
+        );
+        if (steps) {
+          navigateMonth(Math.sign(steps), Math.abs(steps), true);
+          wheelRemainder -= steps;
         }
       },
       { passive: false },
