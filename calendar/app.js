@@ -97,7 +97,8 @@
     !window.supabase ||
     !window.FullCalendar ||
     !window.CalendarHolidays ||
-    !window.CalendarPush
+    !window.CalendarPush ||
+    !window.CalendarOffline
   ) {
     $("auth-status").textContent =
       "A required file could not load. Upload all files in the supplied calendar folder, then refresh.";
@@ -419,8 +420,16 @@
       storageKey: "sajal.family.calendar.auth.v1",
     },
   });
-  async function rpc(name, args = {}) {
-    const { data, error } = await sb.rpc(name, args);
+  async function rawRpc(name, args = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    let result;
+    try {
+      result = await sb.rpc(name, args).abortSignal(controller.signal);
+    } finally {
+      clearTimeout(timer);
+    }
+    const { data, error } = result;
     if (error) {
       if (/fetch|network|timeout/i.test(error.message || ""))
         cloudConnected = false;
@@ -428,6 +437,49 @@
     }
     return data;
   }
+  const offline = CalendarOffline.create({
+    getAccount: () => user,
+    getRange: () =>
+      calendar
+        ? {
+            from: localDate(calendar.view.activeStart),
+            to:
+              calendar.view.activeEnd.getFullYear() > 9999
+                ? "9999-12-31"
+                : localDate(calendar.view.activeEnd),
+          }
+        : null,
+    send: rawRpc,
+    onChange: () => {
+      updateSyncStatus();
+      if (user && !writeBusy && !dragging) restoreCached();
+      if ($("offline-sync-dialog").open) renderPendingChanges();
+    },
+  });
+  let explicitlySignedOut = false;
+  const logoutMarker = "sajal.calendar.signedout.v1";
+  let loginAttempt = false;
+  try {
+    explicitlySignedOut = localStorage.getItem(logoutMarker) === "true";
+  } catch {}
+  let offlineStorageUnavailable = false;
+  async function rpc(name, args = {}) {
+    if (offline.isWrite(name) && offline.details().ready)
+      return offline.mutate(
+        name,
+        args,
+        records.get(args.p_event?.id || args.p_id),
+      );
+    if (offline.isWrite(name) && !navigator.onLine)
+      throw new Error("Reconnect once to enable offline editing.");
+    return rawRpc(name, args);
+  }
+  if ("serviceWorker" in navigator)
+    navigator.serviceWorker
+      .register(new URL("sw.js", location.href), {
+        scope: new URL("./", location.href).pathname,
+      })
+      .catch(() => {});
   const push = CalendarPush.create({ rpc });
   $("notification-settings").addEventListener("click", () => push.open());
   initCalendarNavigation();
@@ -449,11 +501,7 @@
         '.new-event,#event-form button[type="submit"],#delete-event,#import,#import-legacy',
       )
       .forEach((b) => (b.disabled = value));
-    $("sync-status").textContent = value
-      ? "Saving…"
-      : cloudConnected
-        ? "Account synced"
-        : "Connection interrupted";
+    updateSyncStatus();
   }
   const member = (id) => context?.members.find((person) => person.id === id);
   const currentEvents = () =>
@@ -769,6 +817,10 @@
     if (!recurrenceBackendReady || !user || !calendar) return;
     viewExpansionTimer = setTimeout(async () => {
       if (!calendar || !user || !recurrenceBackendReady) return;
+      if (!navigator.onLine || offline.details().pending) {
+        restoreCached();
+        return;
+      }
       if (calendar.view.activeStart.getFullYear() < 100) return;
       const from = localDate(calendar.view.activeStart),
         to =
@@ -1746,6 +1798,7 @@
       "confirm-dialog",
       "family-dialog",
       "date-picker-dialog",
+      "offline-sync-dialog",
     ])
       if ($(id).open) $(id).close();
     editingId = null;
@@ -1767,6 +1820,7 @@
     writeBusy = false;
     dragging = false;
     cloudConnected = false;
+    offline.detach();
     form.reset();
     $("family-dialog-title").textContent = "Your family";
     $("calendar").replaceChildren();
@@ -1790,12 +1844,266 @@
     $("login-screen").hidden = false;
     setBusy(false);
   }
+  function updateSyncStatus() {
+    const state = offline.details();
+    $("sync-status").textContent = writeBusy
+      ? "Saving…"
+      : state.syncing
+        ? "Syncing…"
+        : state.conflicts
+          ? `${state.conflicts} changes need review`
+          : !navigator.onLine
+            ? state.pending
+              ? `Offline · ${state.pending} changes waiting to sync`
+              : "Offline · Saved calendar"
+            : state.pending
+              ? `${state.pending} changes waiting to sync`
+              : cloudConnected
+                ? offlineStorageUnavailable
+                  ? "Account synced · Offline storage unavailable"
+                  : "Account synced"
+                : "Connection interrupted";
+    $("sync-details").hidden = !(state.pending || state.conflicts);
+  }
+  function applyCalendarState(value) {
+    if (!value || !user) return;
+    const nextContext = value.context,
+      rows = value.rows,
+      ownReminders = value.reminders,
+      repeatReady = value.repeatReady;
+    if (nextContext.profile?.id !== user.id)
+      throw new Error(
+        "The account response did not match your sign-in. Sign out and try again.",
+      );
+    context = nextContext;
+    reminderBackendReady = ownReminders !== null;
+    recurrenceBackendReady = Boolean(repeatReady);
+    const patternSnapshot = JSON.stringify(
+      [
+        ...new Set(
+          rows
+            .filter((row) => row.series_id)
+            .map((row) => `${row.series_id}/${row.series_version}`),
+        ),
+      ].sort(),
+    );
+    if (patternSnapshot !== recurrenceSnapshot) {
+      expandedRanges.clear();
+      recurrenceSnapshot = patternSnapshot;
+    }
+    reminders = new Map((ownReminders || []).map((row) => [row.event_id, row]));
+    if (!context.family) {
+      document.body.classList.remove("calendar-home-active");
+      calendarSizeObserver?.disconnect();
+      calendar?.destroy();
+      calendar = null;
+      records.clear();
+      $("calendar-app").hidden = true;
+      $("login-screen").hidden = true;
+      $("family-setup-screen").hidden = false;
+      $("setup-name").value = context.profile.display_name;
+      return;
+    }
+    $("family-setup-screen").hidden = true;
+    $("login-screen").hidden = true;
+    $("calendar-app").hidden = false;
+    document.body.classList.add("calendar-home-active");
+    const displayName = context.profile.display_name.trim();
+    $("account-initial").textContent =
+      `${Array.from(displayName)[0]?.toLocaleUpperCase() || "?"}.`;
+    $("account-display-name").textContent = displayName;
+    $("account-family").textContent = context.family.name;
+    const snapshot = JSON.stringify([context, rows, ownReminders]);
+    if (snapshot !== lastSnapshot || !calendar) {
+      const previousRecords = records;
+      records = new Map(rows.map((row) => [row.id, row]));
+      lastSnapshot = snapshot;
+      if (dialog.open && editingId && !editingHoliday) {
+        let current = records.get(editingId);
+        const previous = previousRecords.get(editingId),
+          ack = offline.ack();
+        if (!current && previous?.series_id) {
+          current = [...records.values()].find(
+            (row) =>
+              row.series_id === offline.resolveSeries(previous.series_id) &&
+              row.occurrence_date === previous.occurrence_date,
+          );
+          if (current) editingId = current.id;
+        }
+        const own = ack?.rows?.find(
+          (row) => row.id === current?.id && row.version === current?.version,
+        );
+        if (current && own) {
+          editingId = current.id;
+          editingVersion = current.version;
+          editingSeriesVersion = current.series_version ?? null;
+        }
+        if (!current) {
+          closeForm();
+          message(
+            "This event was deleted or is no longer shared with you.",
+            true,
+            true,
+          );
+        } else if (
+          (current.version !== editingVersion && !offline.details().pending) ||
+          ((current.series_version ?? null) !== editingSeriesVersion &&
+            !offline.details().pending)
+        ) {
+          $("form-error").textContent =
+            "This event changed elsewhere. Close and reopen it before saving.";
+          $("form-error").hidden = false;
+        }
+      }
+      if (!calendar) buildCalendar();
+      else replacePersonalEvents();
+      renderFamilyMembers();
+      updateLegacyPrompt();
+    }
+  }
+  function restoreCached() {
+    const value = offline.view();
+    if (!value || value.context?.profile?.id !== user?.id) return false;
+    applyCalendarState(value);
+    updateSyncStatus();
+    return true;
+  }
+  function renderPendingChanges() {
+    const list = $("offline-change-list");
+    list.replaceChildren();
+    for (const change of offline.queue()) {
+      const card = document.createElement("div");
+      card.className = "offline-change";
+      const title = document.createElement("strong");
+      title.textContent = change.title;
+      const status = document.createElement("p");
+      status.className = "field-help";
+      status.textContent =
+        change.status === "queued"
+          ? change.error || "Waiting to sync."
+          : change.status === "blocked"
+            ? "An earlier change needs review first."
+            : change.error;
+      card.append(title, status);
+      if (change.status !== "queued") {
+        const current =
+          records.get(change.eventId) ||
+          (change.targetSeries && change.targetSlot
+            ? [...records.values()].find(
+                (row) =>
+                  row.series_id ===
+                    offline.resolveSeries(change.targetSeries) &&
+                  row.occurrence_date === change.targetSlot,
+              )
+            : null);
+        if (current) {
+          const open = document.createElement("button");
+          open.type = "button";
+          open.className = "secondary";
+          open.textContent = "Open current event";
+          open.onclick = () => {
+            $("offline-sync-dialog").close();
+            openForm(calendar.getEventById(current.id));
+          };
+          card.append(open);
+        }
+        if (change.args.p_event) {
+          const keep = document.createElement("button");
+          keep.type = "button";
+          keep.className = "secondary";
+          keep.textContent = "Keep as a new private event";
+          keep.onclick = async () => {
+            keep.disabled = true;
+            try {
+              await offline.mutate(
+                "cal_save_recurring_event",
+                {
+                  ...change.args,
+                  p_event: { ...change.args.p_event, id: uid() },
+                  p_share_with: [],
+                  p_expected_version: null,
+                  p_expected_series_version: null,
+                  p_repeat: "",
+                  p_scope: "one",
+                },
+                null,
+              );
+              await offline.discard(change.id);
+              restoreCached();
+            } catch (error) {
+              message(explain(error), true, true);
+            } finally {
+              keep.disabled = false;
+            }
+          };
+          card.append(keep);
+        }
+        const discard = document.createElement("button");
+        discard.type = "button";
+        discard.className = "secondary";
+        discard.textContent = "Discard queued change";
+        discard.onclick = async () => {
+          if (
+            confirm(
+              "Discard this saved change and any later edits depending on it?",
+            )
+          ) {
+            await offline.discard(change.id);
+            restoreCached();
+          }
+        };
+        card.append(discard);
+      }
+      list.append(card);
+    }
+    if (!list.childElementCount) list.textContent = "All changes have synced.";
+  }
+  $("sync-details").addEventListener("click", () => {
+    renderPendingChanges();
+    $("offline-sync-dialog").showModal();
+  });
+  $("close-offline-sync").addEventListener("click", () =>
+    $("offline-sync-dialog").close(),
+  );
+  $("retry-offline-sync").addEventListener("click", async () => {
+    await offline.flush();
+    await refreshCloud();
+    renderPendingChanges();
+  });
+
   async function refreshCloud(first = false) {
     if (!user || passwordFlow) return false;
     const requestEpoch = epoch;
+    try {
+      await offline.load(user.id);
+      offlineStorageUnavailable = false;
+    } catch (error) {
+      offline.detach();
+      offlineStorageUnavailable = true;
+      if (!navigator.onLine) {
+        status("auth-status", explain(error), true);
+        return false;
+      }
+    }
+    if (requestEpoch !== epoch || !user) return false;
+    if (!navigator.onLine) {
+      if (restoreCached()) return true;
+      status(
+        "auth-status",
+        "Connect once to download your calendar for offline use.",
+        true,
+      );
+      return false;
+    }
+    if (offline.details().pending) {
+      restoreCached();
+      void offline.flush();
+      return true;
+    }
     if (refreshFlight?.epoch === requestEpoch) return refreshFlight.promise;
     const promise = (async () => {
       try {
+        let offlineSnapshot = null;
         let [nextContext, rows, ownReminders, repeatReady] = await Promise.all([
           rpc("cal_get_context"),
           rpc("cal_list_events"),
@@ -1814,79 +2122,37 @@
           ]);
           if (requestEpoch !== epoch || !user) return false;
         }
-        if (nextContext.profile?.id !== user.id)
-          throw new Error(
-            "The account response did not match your sign-in. Sign out and try again.",
-          );
-        context = nextContext;
-        reminderBackendReady = ownReminders !== null;
-        recurrenceBackendReady = Boolean(repeatReady);
-        const patternSnapshot = JSON.stringify(
-          [
-            ...new Set(
-              rows
-                .filter((row) => row.series_id)
-                .map((row) => `${row.series_id}/${row.series_version}`),
-            ),
-          ].sort(),
+        offlineSnapshot = await rawRpc("cal_offline_snapshot").catch(
+          () => null,
         );
-        if (patternSnapshot !== recurrenceSnapshot) {
-          expandedRanges.clear();
-          recurrenceSnapshot = patternSnapshot;
+        if (requestEpoch !== epoch || !user) return false;
+        if (offlineSnapshot) {
+          nextContext = offlineSnapshot.context;
+          rows = offlineSnapshot.rows;
+          ownReminders = offlineSnapshot.reminders;
+          repeatReady = offlineSnapshot.repeatReady;
         }
-        reminders = new Map(
-          (ownReminders || []).map((row) => [row.event_id, row]),
-        );
-        if (!context.family) {
-          document.body.classList.remove("calendar-home-active");
-          calendarSizeObserver?.disconnect();
-          calendar?.destroy();
-          calendar = null;
-          records.clear();
-          $("calendar-app").hidden = true;
-          $("login-screen").hidden = true;
-          $("family-setup-screen").hidden = false;
-          $("setup-name").value = context.profile.display_name;
-          return true;
+        const snapshot = offlineSnapshot || {
+          context: nextContext,
+          rows,
+          reminders: ownReminders,
+          repeatReady,
+          ready: false,
+          series: [],
+          exclusions: [],
+        };
+        let cached;
+        try {
+          cached = await offline.baseline(user, snapshot);
+          offlineStorageUnavailable = false;
+        } catch {
+          offline.detach();
+          offlineStorageUnavailable = true;
+          cached = snapshot;
         }
-        $("family-setup-screen").hidden = true;
-        $("login-screen").hidden = true;
-        $("calendar-app").hidden = false;
-        document.body.classList.add("calendar-home-active");
-        const displayName = context.profile.display_name.trim();
-        $("account-initial").textContent =
-          `${Array.from(displayName)[0]?.toLocaleUpperCase() || "?"}.`;
-        $("account-display-name").textContent = displayName;
-        $("account-family").textContent = context.family.name;
-        const snapshot = JSON.stringify([context, rows, ownReminders]);
-        if (snapshot !== lastSnapshot || !calendar) {
-          records = new Map(rows.map((row) => [row.id, row]));
-          lastSnapshot = snapshot;
-          if (dialog.open && editingId && !editingHoliday) {
-            const current = records.get(editingId);
-            if (!current) {
-              closeForm();
-              message(
-                "This event was deleted or is no longer shared with you.",
-                true,
-                true,
-              );
-            } else if (
-              current.version !== editingVersion ||
-              (current.series_version ?? null) !== editingSeriesVersion
-            ) {
-              $("form-error").textContent =
-                "This event changed elsewhere. Close and reopen it before saving.";
-              $("form-error").hidden = false;
-            }
-          }
-          if (!calendar) buildCalendar();
-          else replacePersonalEvents();
-          renderFamilyMembers();
-          updateLegacyPrompt();
-        }
+        applyCalendarState(cached);
         cloudConnected = true;
-        $("sync-status").textContent = writeBusy ? "Saving…" : "Account synced";
+        updateSyncStatus();
         queueViewExpansion();
         if (!reminderLinkHandled) {
           const params = new URLSearchParams(location.search);
@@ -1918,13 +2184,17 @@
       } catch (error) {
         if (requestEpoch !== epoch) return false;
         cloudConnected = false;
+        if (restoreCached()) {
+          updateSyncStatus();
+          return true;
+        }
         if (first || !calendar) {
           $("login-screen").hidden = false;
           $("login-form").hidden = true;
           $("signed-in-error").hidden = false;
           status("auth-status", explain(error), true);
         } else {
-          $("sync-status").textContent = "Connection interrupted";
+          updateSyncStatus();
           message(`Could not refresh: ${explain(error)}`, true, true);
         }
         return false;
@@ -1939,6 +2209,23 @@
   }
   function handleSession(session, event) {
     const next = session?.user || null;
+    const explicitSignIn =
+      next && ((event === "SIGNED_IN" && loginAttempt) || emailLinkPending);
+    if (explicitlySignedOut && next && !explicitSignIn) return;
+    if (explicitSignIn) {
+      explicitlySignedOut = false;
+      loginAttempt = false;
+      try {
+        localStorage.removeItem(logoutMarker);
+      } catch {}
+    }
+    if (event === "SIGNED_IN") {
+      explicitlySignedOut = false;
+      sb.auth.startAutoRefresh();
+    }
+    if (!next && user && !navigator.onLine) return;
+    if (next && !passwordFlow) offline.remember(next);
+    if (!next) offline.remember(null);
     if (!next && emailLinkPending) {
       emailLinkPending = false;
       emailLinkError = true;
@@ -2083,6 +2370,7 @@
   });
   $("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    loginAttempt = true;
     $("login-submit").disabled = true;
     status("auth-status", "Signing in…");
     try {
@@ -2092,12 +2380,29 @@
       });
       if (error) throw error;
     } catch (error) {
+      loginAttempt = false;
       status("auth-status", explain(error), true);
     } finally {
       $("login-submit").disabled = false;
     }
   });
   async function signOut() {
+    explicitlySignedOut = true;
+    try {
+      localStorage.setItem(logoutMarker, "true");
+    } catch {}
+    offline.remember(null);
+    if (!navigator.onLine) {
+      sb.auth.stopAutoRefresh();
+      localStorage.removeItem("sajal.family.calendar.auth.v1");
+      epoch++;
+      user = null;
+      push.setAccount(null);
+      clearAccountView();
+      $("login-form").hidden = false;
+      $("signed-in-error").hidden = true;
+      return;
+    }
     try {
       await push.disconnect();
     } catch {
@@ -2105,8 +2410,20 @@
     }
     const { error } = await sb.auth.signOut();
     if (error) {
+      explicitlySignedOut = false;
+      offline.remember(user);
+      try {
+        localStorage.removeItem(logoutMarker);
+      } catch {}
       message(explain(error), true, true);
       status("auth-status", explain(error), true);
+    } else {
+      epoch++;
+      user = null;
+      push.setAccount(null);
+      clearAccountView();
+      $("login-form").hidden = false;
+      $("signed-in-error").hidden = true;
     }
   }
   for (const id of [
@@ -2260,9 +2577,11 @@
       closeForm();
       const refreshed = await refreshCloud();
       message(
-        refreshed
-          ? "Event saved to your account."
-          : "Event saved. Account refresh will retry when connected.",
+        offline.details().pending
+          ? "Saved on this device. It will sync when connected."
+          : refreshed
+            ? "Event saved to your account."
+            : "Event saved. Account refresh will retry when connected.",
         !refreshed,
         !refreshed,
       );
@@ -2324,7 +2643,11 @@
       if (requestEpoch !== epoch) return;
       closeForm();
       await refreshCloud();
-      message("Event deleted for everyone who had access.");
+      message(
+        offline.details().pending
+          ? "Deletion saved on this device. It will sync when connected."
+          : "Event deleted for everyone who had access.",
+      );
     } catch (error) {
       if (requestEpoch === epoch) {
         $("form-error").textContent = explain(error);
@@ -2368,7 +2691,11 @@
       );
       if (requestEpoch === epoch) {
         await refreshCloud();
-        message("Event moved and saved.");
+        message(
+          offline.details().pending
+            ? "Move saved on this device. It will sync when connected."
+            : "Event moved and saved.",
+        );
       }
     } catch (error) {
       if (requestEpoch === epoch) {
@@ -2521,6 +2848,26 @@
   window.addEventListener("focus", () => {
     if (user && !writeBusy) void refreshCloud();
   });
+  window.addEventListener("online", async () => {
+    if (!user) return;
+    const { data } = await sb.auth.getSession();
+    if (!data?.session) {
+      initialSessionSeen = false;
+      handleSession(null, "AUTH_REQUIRED");
+      status(
+        "auth-status",
+        "Sign in again to sync your changes. They are saved on this device.",
+        true,
+      );
+      return;
+    }
+    await offline.flush();
+    await refreshCloud();
+  });
+  window.addEventListener("offline", () => {
+    cloudConnected = false;
+    updateSyncStatus();
+  });
   // An email link may target a tab that is already open on this page.
   window.addEventListener("hashchange", () => {
     const params = new URLSearchParams(location.hash.slice(1));
@@ -2530,6 +2877,19 @@
   sb.auth.onAuthStateChange((event, session) =>
     setTimeout(() => handleSession(session, event), 0),
   );
+  if (!navigator.onLine && !emailLinkPending) {
+    const id = offline.activeId();
+    if (id)
+      offline
+        .load(id)
+        .then(() => {
+          const cached = offline.user();
+          if (cached && !user) {
+            handleSession({ user: cached }, "OFFLINE_RESTORE");
+          }
+        })
+        .catch((error) => status("auth-status", explain(error), true));
+  }
   sb.auth.getSession().then(({ data, error }) => {
     if (error) {
       emailLinkPending = false;

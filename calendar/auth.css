@@ -972,3 +972,24 @@ dialog {
     padding: 6px 2px;
   }
 }
+
+#sync-details {
+  border: 0;
+  background: none;
+  color: var(--forest);
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+#offline-sync-dialog {
+  width: 480px;
+}
+.offline-change {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+}
+.offline-change button {
+  margin: 4px 8px 4px 0;
+  font-size: 12px;
+}
