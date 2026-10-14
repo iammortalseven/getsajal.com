@@ -82,6 +82,7 @@
   );
   let calendarSizeObserver = null,
     calendarSizeFrame = 0,
+    monthEventLayoutFrame = 0,
     navigationAnimation = null;
   let navigationBusy = false,
     suppressCalendarTapUntil = 0,
@@ -803,6 +804,158 @@
       }
     }, 150);
   }
+  function queueMonthEventLayout() {
+    cancelAnimationFrame(monthEventLayoutFrame);
+    monthEventLayoutFrame = requestAnimationFrame(fitMonthEventTitles);
+  }
+  function fitMonthEventTitles() {
+    if (
+      !calendar ||
+      !phoneLayout.matches ||
+      calendar.view.type !== "dayGridMonth"
+    )
+      return;
+    const cells = [
+      ...$("calendar").querySelectorAll(
+        ".fc-dayGridMonth-view td.fc-daygrid-day",
+      ),
+    ];
+    const counts = new Map(cells.map((cell) => [cell.dataset.date, 0]));
+    const threshold = calendar.getOption("nextDayThreshold");
+    const thresholdMinutes =
+      typeof threshold === "string"
+        ? Number(threshold.split(":")[0]) * 60 +
+          Number(threshold.split(":")[1] || 0)
+        : (threshold?.milliseconds || 0) / 60000;
+    for (const event of calendar.getEvents()) {
+      if (
+        !event.start ||
+        ["background", "inverse-background", "none"].includes(event.display)
+      )
+        continue;
+      const start = localDate(event.start);
+      let end = event.end ? localDate(event.end) : addDays(start, 1);
+      const endMinutes = event.end
+        ? event.end.getHours() * 60 +
+          event.end.getMinutes() +
+          event.end.getSeconds() / 60
+        : 0;
+      if (
+        event.end &&
+        !event.allDay &&
+        endMinutes > 0 &&
+        endMinutes >= thresholdMinutes
+      )
+        end = addDays(end, 1);
+      if (end <= start) end = addDays(start, 1);
+      for (const date of counts.keys())
+        if (date >= start && date < end) counts.set(date, counts.get(date) + 1);
+    }
+    const slots = new Map(
+      cells.map((cell) => {
+        const events = cell.querySelector(".fc-daygrid-day-events");
+        const available =
+          cell.getBoundingClientRect().bottom -
+          events.getBoundingClientRect().top -
+          4;
+        return [cell, available / Math.max(1, counts.get(cell.dataset.date))];
+      }),
+    );
+    let changed = false;
+    for (const element of $("calendar").querySelectorAll(
+      ".mobile-month-event",
+    )) {
+      if (
+        element.closest(".fc-popover") ||
+        element.classList.contains("fc-event-mirror")
+      )
+        continue;
+      const cell = element.closest("td.fc-daygrid-day");
+      const title = element.querySelector(".fc-event-title");
+      if (!slots.has(cell) || !title) continue;
+      // A multi-day bar must fit every date it crosses, including busy dates.
+      const rowCells = [
+        ...cell.parentElement.querySelectorAll("td.fc-daygrid-day"),
+      ];
+      const span = Math.max(
+        1,
+        Math.round(
+          element.getBoundingClientRect().width /
+            cell.getBoundingClientRect().width,
+        ),
+      );
+      const covered = rowCells.slice(
+        rowCells.indexOf(cell),
+        rowCells.indexOf(cell) + span,
+      );
+      const slot = Math.min(...covered.map((day) => slots.get(day)));
+      const style = getComputedStyle(element);
+      const chrome = [
+        "paddingTop",
+        "paddingBottom",
+        "borderTopWidth",
+        "borderBottomWidth",
+        "marginTop",
+        "marginBottom",
+      ].reduce(
+        (height, property) => height + (parseFloat(style[property]) || 0),
+        0,
+      );
+      const time = element.querySelector(".mobile-month-time-row");
+      const lineHeight = parseFloat(getComputedStyle(title).lineHeight);
+      const lines = Math.max(
+        1,
+        Math.floor(
+          (slot -
+            chrome -
+            (time ? time.getBoundingClientRect().height + 1 : 0)) /
+            lineHeight,
+        ),
+      );
+      if (
+        element.style.getPropertyValue("--month-title-lines") !== String(lines)
+      ) {
+        element.style.setProperty("--month-title-lines", String(lines));
+        changed = true;
+      }
+    }
+    if (changed) {
+      calendar.updateSize();
+      queueMonthEventLayout();
+    }
+  }
+  function monthEventContent(info) {
+    if (!phoneLayout.matches || info.view.type !== "dayGridMonth") return true;
+    const content = document.createElement("div");
+    content.className = "mobile-month-entry";
+    if (info.timeText && !info.event.allDay) {
+      const row = document.createElement("div");
+      row.className = "mobile-month-time-row";
+      const dot = document.createElement("span");
+      dot.className = "mobile-month-dot";
+      dot.style.backgroundColor =
+        info.event.borderColor || info.event.backgroundColor || colors[0];
+      dot.setAttribute("aria-hidden", "true");
+      const time = document.createElement("span");
+      time.className = "fc-event-time mobile-month-short-time";
+      const date = info.isStart ? info.event.start : info.event.end;
+      time.textContent = date.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      const fullTime = document.createElement("span");
+      fullTime.className = "fc-event-time mobile-month-full-time";
+      fullTime.textContent = info.timeText;
+      row.append(dot, time, fullTime);
+      content.append(row);
+    }
+    const title = document.createElement("span");
+    title.className = "fc-event-title";
+    title.textContent = info.event.title;
+    content.append(title);
+    return { domNodes: [content] };
+  }
   function buildCalendar() {
     calendar = new FullCalendar.Calendar($("calendar"), {
       initialView: "dayGridMonth",
@@ -857,10 +1010,12 @@
       ],
       eventsSet: () => {
         if (calendar) renderUpcoming();
+        queueMonthEventLayout();
       },
       datesSet: (info) => {
         renderCalendarTitle(info.view);
         queueViewExpansion();
+        queueMonthEventLayout();
       },
       select: (info) => {
         if (dialog.open) return;
@@ -909,7 +1064,13 @@
       },
       eventDrop: saveMovedEvent,
       eventResize: saveMovedEvent,
+      eventClassNames: (info) =>
+        phoneLayout.matches && info.view.type === "dayGridMonth"
+          ? ["mobile-month-event"]
+          : [],
+      eventContent: monthEventContent,
       eventDidMount: (info) => {
+        queueMonthEventLayout();
         info.el.title = [
           info.event.title,
           info.event.extendedProps.location,
@@ -940,7 +1101,10 @@
       if (size === previousSize) return;
       previousSize = size;
       cancelAnimationFrame(calendarSizeFrame);
-      calendarSizeFrame = requestAnimationFrame(() => calendar?.updateSize());
+      calendarSizeFrame = requestAnimationFrame(() => {
+        calendar?.updateSize();
+        queueMonthEventLayout();
+      });
     });
     calendarSizeObserver.observe($("calendar").parentElement);
   }
@@ -1153,7 +1317,20 @@
         closeAccountMenu(true);
       }
     });
-    phoneLayout.addEventListener("change", () => closeAccountMenu());
+    phoneLayout.addEventListener("change", () => {
+      closeAccountMenu();
+      // Fresh callbacks invalidate FullCalendar's memoized event content when
+      // crossing the phone breakpoint without changing the displayed date.
+      calendar?.batchRendering(() => {
+        calendar.setOption("eventContent", (info) => monthEventContent(info));
+        calendar.setOption("eventClassNames", (info) =>
+          phoneLayout.matches && info.view.type === "dayGridMonth"
+            ? ["mobile-month-event"]
+            : [],
+        );
+      });
+      queueMonthEventLayout();
+    });
     for (const part of ["month", "year"]) {
       const list = $(part === "month" ? "month-options" : "year-options");
       list.addEventListener("click", (event) => {
@@ -1428,6 +1605,7 @@
     closeAccountMenu();
     calendarSizeObserver?.disconnect();
     cancelAnimationFrame(calendarSizeFrame);
+    cancelAnimationFrame(monthEventLayoutFrame);
     navigationAnimation?.cancel();
     navigationBusy = false;
     for (const id of [

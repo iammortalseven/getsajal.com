@@ -402,6 +402,70 @@
   text-overflow: ellipsis;
   overflow-wrap: normal;
 }
+/* Phone month entries share each day's available height rather than forcing
+   every title onto one line. FullCalendar still manages overflow and dragging. */
+#calendar-app .fc-daygrid-dot-event.mobile-month-event {
+  display: block;
+}
+#calendar-app .fc-daygrid-event.mobile-month-event {
+  margin-top: 1px;
+  margin-bottom: 1px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+.mobile-month-entry {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+#calendar-app .mobile-month-event .fc-event-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--month-title-lines, 1);
+  min-width: 0;
+  padding: 0;
+  line-height: 11px;
+  white-space: normal;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+}
+.mobile-month-time-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.mobile-month-dot {
+  flex: 0 0 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+#calendar-app .mobile-month-event .fc-event-time {
+  flex: initial;
+  margin: 0;
+  padding: 0;
+  font-size: 9px;
+  line-height: 10px;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+#calendar-app .mobile-month-full-time {
+  display: none;
+}
+#calendar-app .fc-popover .mobile-month-short-time {
+  display: none;
+}
+#calendar-app .fc-popover .mobile-month-full-time {
+  display: inline;
+}
+#calendar-app .fc-popover .mobile-month-event .fc-event-title {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
 @media (max-width: 800px) {
   #event-reminder-fields > label {
     font-size: 13px;
