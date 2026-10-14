@@ -808,19 +808,40 @@
     cancelAnimationFrame(monthEventLayoutFrame);
     monthEventLayoutFrame = requestAnimationFrame(fitMonthEventTitles);
   }
+  function monthEventInk(color) {
+    function luminance(hex) {
+      let digits = hex.slice(1);
+      if (digits.length === 3)
+        digits = [...digits].map((digit) => digit + digit).join("");
+      const channels = [0, 2, 4].map((offset) => {
+        const channel = parseInt(digits.slice(offset, offset + 2), 16) / 255;
+        return channel <= 0.04045
+          ? channel / 12.92
+          : ((channel + 0.055) / 1.055) ** 2.4;
+      });
+      return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+    }
+    const light = luminance(color),
+      dark = luminance("#253c33");
+    return 1.05 / (light + 0.05) >= (light + 0.05) / (dark + 0.05)
+      ? "#fff"
+      : "#253c33";
+  }
+  function monthEventClasses(info) {
+    if (info.view.type !== "dayGridMonth") return [];
+    return phoneLayout.matches
+      ? ["month-colour-event", "mobile-month-event"]
+      : ["month-colour-event"];
+  }
   function fitMonthEventTitles() {
-    if (
-      !calendar ||
-      !phoneLayout.matches ||
-      calendar.view.type !== "dayGridMonth"
-    )
-      return;
+    if (!calendar || calendar.view.type !== "dayGridMonth") return;
+    renderCalendarTitle(calendar.view);
     const cells = [
       ...$("calendar").querySelectorAll(
         ".fc-dayGridMonth-view td.fc-daygrid-day",
       ),
     ];
-    const counts = new Map(cells.map((cell) => [cell.dataset.date, 0]));
+    const dayEvents = new Map(cells.map((cell) => [cell.dataset.date, []]));
     const threshold = calendar.getOption("nextDayThreshold");
     const thresholdMinutes =
       typeof threshold === "string"
@@ -848,16 +869,42 @@
       )
         end = addDays(end, 1);
       if (end <= start) end = addDays(start, 1);
-      for (const date of counts.keys())
-        if (date >= start && date < end) counts.set(date, counts.get(date) + 1);
+      for (const [date, events] of dayEvents)
+        if (date >= start && date < end) events.push(event);
     }
+    for (const cell of cells) {
+      const events = dayEvents.get(cell.dataset.date);
+      cell.classList.toggle("single-event-day", events.length === 1);
+      if (events.length === 1) {
+        const color = events[0].backgroundColor || colors[0];
+        cell.style.setProperty("--single-event-color", color);
+        cell.style.setProperty("--single-event-ink", monthEventInk(color));
+      } else {
+        cell.style.removeProperty("--single-event-color");
+        cell.style.removeProperty("--single-event-ink");
+      }
+    }
+    for (const element of $("calendar").querySelectorAll(
+      ".month-colour-event",
+    )) {
+      const event = calendar.getEventById(element.dataset.monthEventId);
+      if (event)
+        element.style.setProperty(
+          "--month-event-ink",
+          monthEventInk(event.backgroundColor || colors[0]),
+        );
+    }
+    if (!phoneLayout.matches) return;
+    const counts = new Map(
+      [...dayEvents].map(([date, events]) => [date, events.length]),
+    );
     const slots = new Map(
       cells.map((cell) => {
         const events = cell.querySelector(".fc-daygrid-day-events");
         const available =
           cell.getBoundingClientRect().bottom -
           events.getBoundingClientRect().top -
-          4;
+          1;
         return [cell, available / Math.max(1, counts.get(cell.dataset.date))];
       }),
     );
@@ -921,6 +968,7 @@
     }
     if (changed) {
       calendar.updateSize();
+      renderCalendarTitle(calendar.view);
       queueMonthEventLayout();
     }
   }
@@ -931,11 +979,6 @@
     if (info.timeText && !info.event.allDay) {
       const row = document.createElement("div");
       row.className = "mobile-month-time-row";
-      const dot = document.createElement("span");
-      dot.className = "mobile-month-dot";
-      dot.style.backgroundColor =
-        info.event.borderColor || info.event.backgroundColor || colors[0];
-      dot.setAttribute("aria-hidden", "true");
       const time = document.createElement("span");
       time.className = "fc-event-time mobile-month-short-time";
       const date = info.isStart ? info.event.start : info.event.end;
@@ -947,7 +990,7 @@
       const fullTime = document.createElement("span");
       fullTime.className = "fc-event-time mobile-month-full-time";
       fullTime.textContent = info.timeText;
-      row.append(dot, time, fullTime);
+      row.append(time, fullTime);
       content.append(row);
     }
     const title = document.createElement("span");
@@ -981,6 +1024,7 @@
       editable: true,
       eventResizableFromStart: true,
       nowIndicator: true,
+      eventDisplay: "block",
       dayMaxEvents: true,
       moreLinkText: (count) =>
         phoneLayout.matches ? `+${count}` : `+${count} more`,
@@ -1064,12 +1108,16 @@
       },
       eventDrop: saveMovedEvent,
       eventResize: saveMovedEvent,
-      eventClassNames: (info) =>
-        phoneLayout.matches && info.view.type === "dayGridMonth"
-          ? ["mobile-month-event"]
-          : [],
+      eventClassNames: monthEventClasses,
       eventContent: monthEventContent,
       eventDidMount: (info) => {
+        if (info.view.type === "dayGridMonth") {
+          info.el.dataset.monthEventId = info.event.id;
+          info.el.style.setProperty(
+            "--month-event-ink",
+            monthEventInk(info.event.backgroundColor || colors[0]),
+          );
+        }
         queueMonthEventLayout();
         info.el.title = [
           info.event.title,
@@ -1122,6 +1170,20 @@
       return button;
     };
     const date = calendar?.getDate() || view.currentStart;
+    const labels =
+      view.type === "dayGridMonth"
+        ? [
+            date.toLocaleDateString("en-AU", { month: "long" }),
+            String(date.getFullYear()),
+          ]
+        : [view.title];
+    const buttons = [...title.querySelectorAll(".calendar-title-button")];
+    if (
+      buttons.length === labels.length &&
+      buttons.every((button, index) => button.textContent === labels[index]) &&
+      title.textContent === labels.join(" ")
+    )
+      return;
     if (view.type === "dayGridMonth")
       title.replaceChildren(
         makeButton(
@@ -1324,9 +1386,7 @@
       calendar?.batchRendering(() => {
         calendar.setOption("eventContent", (info) => monthEventContent(info));
         calendar.setOption("eventClassNames", (info) =>
-          phoneLayout.matches && info.view.type === "dayGridMonth"
-            ? ["mobile-month-event"]
-            : [],
+          monthEventClasses(info),
         );
       });
       queueMonthEventLayout();

@@ -436,12 +436,6 @@
   gap: 3px;
   min-width: 0;
 }
-.mobile-month-dot {
-  flex: 0 0 5px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-}
 #calendar-app .mobile-month-event .fc-event-time {
   flex: initial;
   margin: 0;
@@ -465,6 +459,33 @@
   display: block;
   -webkit-line-clamp: unset;
   overflow: visible;
+}
+/* A single event fills the month date; shared dates retain separate cards. */
+#calendar-app .fc .fc-daygrid-day.single-event-day {
+  background-color: var(--single-event-color);
+}
+#calendar-app .single-event-day .fc-daygrid-day-number {
+  color: var(--single-event-ink);
+}
+#calendar-app .single-event-day .fc-daygrid-more-link {
+  color: var(--single-event-ink);
+}
+#calendar-app .single-event-day .fc-daygrid-day-top {
+  opacity: 1;
+}
+#calendar-app .month-colour-event .fc-event-main {
+  color: var(--month-event-ink, #fff);
+}
+#calendar-app .month-colour-event .fc-event-main-frame {
+  display: block;
+}
+/* Tall Week events can wrap their time range into the spare vertical space. */
+#calendar-app
+  .fc-timeGridWeek-view
+  .fc-timegrid-event:not(.fc-timegrid-event-short)
+  .fc-event-time {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 @media (max-width: 800px) {
   #event-reminder-fields > label {
