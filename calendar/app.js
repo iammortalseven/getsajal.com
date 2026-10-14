@@ -1030,7 +1030,7 @@
         phoneLayout.matches ? `+${count}` : `+${count} more`,
       moreLinkDidMount: (info) =>
         info.el.setAttribute("aria-label", `Show ${info.num} more events`),
-      views: { timeGrid: { dayMaxEventRows: 2 } },
+      views: { timeGrid: { dayMaxEventRows: 2, scrollTimeReset: false } },
       fixedWeekCount: false,
       displayEventEnd: true,
       scrollTime: "08:00:00",
@@ -1213,29 +1213,54 @@
     $("mobile-menu-toggle").setAttribute("aria-label", "Open account menu");
     if (restoreFocus) $("mobile-menu-toggle").focus();
   }
-  function canNavigateMonth() {
+  function canNavigateCalendar() {
     return (
-      calendar?.view.type === "dayGridMonth" &&
+      ["dayGridMonth", "timeGridWeek", "timeGridDay"].includes(
+        calendar?.view.type,
+      ) &&
+      !$("calendar-app").hidden &&
       !writeBusy &&
       !dragging &&
       !document.querySelector("dialog[open]") &&
       !$("account-actions").hasAttribute("data-open")
     );
   }
-  function navigateMonth(direction, steps = 1, interrupt = false) {
-    if (!canNavigateMonth() || (navigationBusy && !interrupt)) return false;
-    const date = calendar.getDate(),
-      currentMonth = date.getFullYear() * 12 + date.getMonth(),
-      nextMonth = Math.max(
+  function navigateCalendar(direction, steps = 1, interrupt = false) {
+    if (!canNavigateCalendar() || (navigationBusy && !interrupt)) return false;
+    const date = calendar.getDate();
+    let nextDate;
+    if (calendar.view.type === "dayGridMonth") {
+      const currentMonth = date.getFullYear() * 12 + date.getMonth();
+      const nextMonth = Math.max(
         12,
         Math.min(9999 * 12 + 11, currentMonth + direction * steps),
       );
-    if (nextMonth === currentMonth) return false;
+      if (nextMonth === currentMonth) return false;
+      nextDate = `${String(Math.floor(nextMonth / 12)).padStart(4, "0")}-${pad((nextMonth % 12) + 1)}-01`;
+    } else {
+      const next = new Date(date);
+      const dateText = (day) =>
+        `${String(day.getFullYear()).padStart(4, "0")}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
+      // Move local calendar days so a daylight-saving change is still one day.
+      next.setHours(12, 0, 0, 0);
+      next.setDate(
+        next.getDate() +
+          direction * steps * (calendar.view.type === "timeGridWeek" ? 7 : 1),
+      );
+      nextDate =
+        !Number.isFinite(next.getTime()) ||
+        // The pinned calendar library maps local years below 100 into the 1900s.
+        next.getFullYear() < 100 ||
+        next.getFullYear() > 9999
+          ? direction < 0
+            ? "0100-01-01"
+            : "9999-12-31"
+          : dateText(next);
+      if (nextDate === dateText(date)) return false;
+    }
     navigationBusy = true;
     calendar.unselect();
-    calendar.gotoDate(
-      `${String(Math.floor(nextMonth / 12)).padStart(4, "0")}-${pad((nextMonth % 12) + 1)}-01`,
-    );
+    calendar.gotoDate(nextDate);
     const view = $("calendar").querySelector(".fc-view-harness");
     if (!view || matchMedia("(prefers-reduced-motion: reduce)").matches) {
       navigationAnimation?.cancel();
@@ -1450,19 +1475,63 @@
     });
     const root = $("calendar");
     let wheelRemainder = 0,
+      wheelDirection = 0,
+      wheelView = "";
+    document.addEventListener("keydown", (event) => {
+      if (
+        phoneLayout.matches ||
+        event.defaultPrevented ||
+        !["ArrowLeft", "ArrowRight"].includes(event.key) ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        event.target.closest(
+          'input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"],[role="listbox"],[role="combobox"],[role="slider"],[role="menu"]',
+        ) ||
+        !canNavigateCalendar()
+      )
+        return;
+      event.preventDefault();
+      wheelRemainder = 0;
       wheelDirection = 0;
+      navigateCalendar(event.key === "ArrowLeft" ? -1 : 1, 1, true);
+    });
     root.addEventListener(
       "wheel",
       (event) => {
         if (
           phoneLayout.matches ||
-          !canNavigateMonth() ||
+          !canNavigateCalendar() ||
           event.ctrlKey ||
           !event.target.closest(".fc-view-harness") ||
           event.target.closest(".fc-popover")
         ) {
           wheelRemainder = 0;
           wheelDirection = 0;
+          return;
+        }
+        if (wheelView !== calendar.view.type) {
+          wheelRemainder = 0;
+          wheelDirection = 0;
+          wheelView = calendar.view.type;
+        }
+        if (event.shiftKey && calendar.view.type !== "dayGridMonth") {
+          wheelRemainder = 0;
+          wheelDirection = 0;
+          const scroller = root
+            .querySelector(".fc-timegrid-body")
+            ?.closest(".fc-scroller");
+          if (scroller) {
+            event.preventDefault();
+            scroller.scrollTop +=
+              event.deltaY *
+              (event.deltaMode === 1
+                ? 16
+                : event.deltaMode === 2
+                  ? scroller.clientHeight
+                  : 1);
+          }
           return;
         }
         if (Math.abs(event.deltaX) > Math.abs(event.deltaY) || !event.deltaY) {
@@ -1477,7 +1546,7 @@
         }
         wheelDirection = direction;
         // One standard wheel notch is about 100 pixels or three lines.
-        // Fractional movement accumulates; faster rolls advance more months immediately.
+        // Fractional movement accumulates; faster rolls advance more periods immediately.
         wheelRemainder +=
           event.deltaY *
           (event.deltaMode === 1 ? 1 / 3 : event.deltaMode === 2 ? 1 : 1 / 100);
@@ -1485,7 +1554,7 @@
           wheelRemainder + Math.sign(wheelRemainder) * 1e-7,
         );
         if (steps) {
-          navigateMonth(Math.sign(steps), Math.abs(steps), true);
+          navigateCalendar(Math.sign(steps), Math.abs(steps), true);
           wheelRemainder -= steps;
         }
       },
@@ -1511,8 +1580,10 @@
             ".fc-daygrid-day,.fc-timegrid-col,.fc-timegrid-slot",
           ) ||
           event.target.closest(
-            ".fc-event,.fc-popover,.fc-daygrid-more-link,button,input,select",
-          )
+            ".fc-popover,.fc-daygrid-more-link,button,input,select",
+          ) ||
+          (event.target.closest(".fc-event") &&
+            !["timeGridWeek", "timeGridDay"].includes(calendar.view.type))
         )
           return;
         const touch = event.touches[0];
@@ -1592,7 +1663,7 @@
           performance.now() - current.started < 800
         ) {
           suppressCalendarTapUntil = Date.now() + 350;
-          navigateMonth(dx < 0 ? 1 : -1);
+          navigateCalendar(dx < 0 ? 1 : -1, 1, true);
         }
         if (["horizontal", "vertical", "cancelled"].includes(current.mode))
           suppressCalendarTapUntil = Date.now() + 350;

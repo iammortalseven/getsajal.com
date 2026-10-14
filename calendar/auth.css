@@ -599,7 +599,9 @@ body.calendar-home-active {
 #calendar-app .fc-daygrid-day-events {
   min-height: 0;
 }
-#calendar-app .fc-dayGridMonth-view {
+#calendar-app .fc-dayGridMonth-view,
+#calendar-app .fc-timeGridWeek-view,
+#calendar-app .fc-timeGridDay-view {
   touch-action: pan-y pinch-zoom;
 }
 #calendar-app .fc-daygrid-day {
