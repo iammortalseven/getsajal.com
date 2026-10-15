@@ -21,11 +21,13 @@ const DATA = path.join(ROOT, 'data', 'photos.json');
 const CACHE = path.join(ROOT, 'data', 'build-cache.json'); // remembers which source files were already processed
 const INDEX = path.join(ROOT, 'index.html');
 
-const WIDTHS = [480, 800, 1200, 1800]; // generated sizes; the largest is used in the lightbox
+const WIDTHS = [480, 800, 1200, 1800]; // generated sizes; the browser picks the best one per screen
 const QUALITY = 80;
 const EAGER_COUNT = 2;                  // first N photos load immediately, the rest lazily
+const COLUMNS = 2;                      // desktop columns (phones always show one column)
+const COLUMN_GAP_ESTIMATE = 0.03;       // gap between photos, as a fraction of column width
 const IMG_EXT = /\.(jpe?g|png|webp|avif|tiff?)$/i;
-const SIZES_ATTR = '(max-width: 640px) 100vw, 50vw';
+const SIZES_ATTR = '(max-width: 767px) 100vw, 50vw';
 
 const slug = (name) =>
   name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'photo';
@@ -92,11 +94,23 @@ function renderFigure(p, index) {
   const alt = p.alt && p.alt.trim() ? p.alt : `Portfolio photograph ${index + 1}`;
   const ar = (p.width / p.height).toFixed(4);
 
-  return `      <figure class="photo" style="--ar:${ar};--c:${p.color}">
-        <a href="images/${p.stem}-${largest}.webp">
+  // --i is the photo's position in your order: phones (one column) use it to keep that order
+  return `        <figure class="photo" style="--i:${index};--ar:${ar};--c:${p.color}">
           <img src="images/${p.stem}-${mid}.webp" srcset="${srcset}" sizes="${SIZES_ATTR}" width="${p.width}" height="${p.height}" alt="${escapeHtml(alt)}" decoding="async"${eager ? (index === 0 ? ' fetchpriority="high"' : '') : ' loading="lazy"'}>
-        </a>
-      </figure>`;
+        </figure>`;
+}
+
+// Masonry, worked out ahead of time: each photo goes into the currently shortest column
+// (the first column wins ties), exactly like a masonry grid but with no layout code in the browser.
+function renderColumns(photos) {
+  const heights = Array(COLUMNS).fill(0);
+  const cols = Array.from({ length: COLUMNS }, () => []);
+  photos.forEach((p, i) => {
+    const c = heights.indexOf(Math.min(...heights));
+    cols[c].push(renderFigure(p, i));
+    heights[c] += p.height / p.width + COLUMN_GAP_ESTIMATE;
+  });
+  return cols.map((c) => `      <div class="col">\n${c.join('\n')}\n      </div>`).join('\n');
 }
 
 async function main() {
@@ -150,7 +164,7 @@ async function main() {
     console.error(`index.html is missing the ${start} / ${end} markers.`);
     process.exit(1);
   }
-  const gallery = photos.map(renderFigure).join('\n');
+  const gallery = renderColumns(photos);
   await writeFile(INDEX, `${html.slice(0, s + start.length)}\n${gallery}\n${html.slice(e)}`);
 
   const noAlt = photos.filter((p) => !p.alt.trim()).length;
