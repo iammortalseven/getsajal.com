@@ -114,12 +114,14 @@ async function main() {
   }
 
   // Existing manifest decides the order and keeps your alt text.
+  // Newest first: photos that aren't in the manifest yet go to the TOP, highest number first
+  // (so photos-13 comes before photos-12). Photos already in the manifest keep their place.
   const manifest = await loadManifest();
   const byFile = new Map(manifest.map((m) => [m.file, m]));
   const present = new Set(files);
   const ordered = [
+    ...files.filter((f) => !byFile.has(f)).reverse(),                  // new photos go on top
     ...manifest.filter((m) => present.has(m.file)).map((m) => m.file), // keep your order
-    ...files.filter((f) => !byFile.has(f)),                            // new photos go at the end
   ];
 
   const cache = await loadCache();
