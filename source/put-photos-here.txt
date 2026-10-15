@@ -1,0 +1,3 @@
+Put your photos in this folder (JPEG, PNG or WEBP).
+They are turned into website-ready images automatically.
+See README.md for details.
