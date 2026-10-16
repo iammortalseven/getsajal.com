@@ -1,0 +1,17 @@
+{
+  "name": "Sajal",
+  "tagline": "Photography",
+  "email": "",
+  "instagram": "",
+  "about": "I am a hobbyist photographer based in Sydney. I enjoy photographing portraits, live music and the moments in between.",
+  "portfolio": {
+    "title": "Portfolio",
+    "description": "A curated collection of my photography",
+    "cover": "",
+    "coverPosition": "50% 50%",
+    "coverOverlay": 0.08,
+    "downloads": false
+  },
+  "zipPartMB": 0,
+  "maxSiteMB": 950
+}
