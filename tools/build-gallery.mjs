@@ -24,6 +24,7 @@ const INDEX = path.join(ROOT, 'index.html');
 const WIDTHS = [480, 800, 1200, 1800]; // generated sizes; the browser picks the best one per screen
 const QUALITY = 80;
 const EAGER_COUNT = 2;                  // first N photos load immediately, the rest lazily
+const ASSET_VERSION = 2;                // must match "build-compat" in css/styles.css and js/main.js
 const COLUMNS = 2;                      // desktop columns (phones always show one column)
 const COLUMN_GAP_ESTIMATE = 0.03;       // gap between photos, as a fraction of column width
 const IMG_EXT = /\.(jpe?g|png|webp|avif|tiff?)$/i;
@@ -154,8 +155,26 @@ async function main() {
   await writeFile(DATA, JSON.stringify(photos.map(({ file, alt }) => ({ file, alt })), null, 2) + '\n');
   await writeFile(CACHE, JSON.stringify(Object.fromEntries(photos.map((p) => [p.file, p.hash])), null, 2) + '\n');
 
+  // Safety check: the gallery markup only looks right with matching css/js. If one of them is an old
+  // copy (easy to do when uploading files by hand) stop here with a clear message instead of
+  // publishing a site that looks broken.
+  const assets = {};
+  for (const [label, file] of [['css/styles.css', 'styles.css'], ['js/main.js', 'main.js']]) {
+    const text = await readFile(path.join(ROOT, label), 'utf8').catch(() => '');
+    if (!text.includes(`build-compat: ${ASSET_VERSION}`)) {
+      console.error(`\n${label} is an old or missing copy. Upload the latest ${file} (version ${ASSET_VERSION}) and run the build again.`);
+      process.exit(1);
+    }
+    assets[label] = createHash('sha1').update(text).digest('hex').slice(0, 8);
+  }
+
   // Inject gallery HTML into index.html
-  const html = await readFile(INDEX, 'utf8');
+  let html = await readFile(INDEX, 'utf8');
+  // Cache-busting: add ?v=<hash> to the css/js links, so visitors (and your own browser) always
+  // fetch the new files after a change instead of reusing a stale copy.
+  html = html
+    .replace(/(css\/styles\.css)(\?v=[a-z0-9]+)?/, `$1?v=${assets['css/styles.css']}`)
+    .replace(/(js\/main\.js)(\?v=[a-z0-9]+)?/, `$1?v=${assets['js/main.js']}`);
   const start = '<!-- GALLERY:START -->';
   const end = '<!-- GALLERY:END -->';
   const s = html.indexOf(start);
