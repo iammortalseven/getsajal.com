@@ -1,5 +1,6 @@
 /* ==========================================================
    Portfolio styles (same look as the original single-file site)
+   build-compat: 2   <- the build script checks this; don't remove
    ========================================================== */
 
 :root {
@@ -179,17 +180,15 @@ main {
   object-fit: cover;
 }
 
-/* Fade up from below as each photo scrolls into view */
+/* Scroll reveal: a photo waits as a faint ghost (10% opacity) while it peeks in at the
+   bottom of the screen. Once 10% of its height is on screen, it fades in to full strength.
+   (js/main.js adds .is-visible at that moment.) Tweak: ghost opacity + duration below.   */
 .js .photo {
-  opacity: 0;
+  opacity: 0.1;
   transform: translateY(20px);
-  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  transition: opacity 0.5s cubic-bezier(0.22, 0.61, 0.36, 1), transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 .js .photo.is-visible { opacity: 1; transform: translateY(0); }
-
-/* ...and the picture itself fades in when it finishes loading */
-.js .photo img { opacity: 0; transition: opacity 0.5s ease-out; }
-.js .photo img.is-loaded { opacity: 1; }
 
 @media (min-width: 768px) {
   .gallery {
@@ -243,9 +242,9 @@ main {
 }
 .to-top.is-visible { opacity: 1; visibility: visible; transition: opacity 0.3s ease; }
 
-/* ---------- Respect reduced-motion settings ---------- */
+/* ---------- Reduced-motion setting (an accessibility option in the phone/computer's settings) ----------
+   Photos still fade in, but without the upward movement, and smooth scrolling is switched off. */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .js .photo { transform: none; }
-  *, *::before, *::after { transition-duration: 0.01ms !important; transition-delay: 0s !important; }
 }

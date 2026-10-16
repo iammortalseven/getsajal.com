@@ -1,5 +1,6 @@
 /* Portfolio behaviour. No dependencies, no layout work: the gallery is
-   pre-rendered by tools/build-gallery.mjs, so this file only adds polish. */
+   pre-rendered by tools/build-gallery.mjs, so this file only adds polish.
+   build-compat: 2   <- the build script checks this; don't remove */
 (function () {
   'use strict';
 
@@ -9,31 +10,36 @@
   var year = $('#year');
   if (year) year.textContent = new Date().getFullYear();
 
-  /* ---------- Photos: fade up on scroll, fade in when loaded ---------- */
+  /* ---------- Photos: ghost until 10% is on screen, then fade in ----------
+     Until then a photo sits at 10% opacity (see .js .photo in the CSS). Once 10% of its
+     height has scrolled into view AND its image has loaded, it fades up to full strength. */
+  var REVEAL_AT = 0.1;   // fraction of the photo's height that must be on screen
   var figures = Array.prototype.slice.call(document.querySelectorAll('.photo'));
 
-  function markLoaded(img) { img.classList.add('is-loaded'); }
-  figures.forEach(function (fig) {
+  function reveal(fig) {
     var img = $('img', fig);
-    if (!img) return;
-    function ready() { (img.decode ? img.decode() : Promise.resolve()).then(function () { markLoaded(img); }, function () { markLoaded(img); }); }
-    if (img.complete && img.naturalWidth) ready();
+    function show() { fig.classList.add('is-visible'); }
+    if (!img) return show();
+    function afterLoad() { (img.decode ? img.decode() : Promise.resolve()).then(show, show); }
+    if (img.complete && img.naturalWidth) afterLoad();
     else {
-      img.addEventListener('load', ready, { once: true });
-      img.addEventListener('error', function () { markLoaded(img); }, { once: true });
+      img.addEventListener('load', afterLoad, { once: true });
+      img.addEventListener('error', show, { once: true });   // never leave a photo stuck faint
     }
-  });
+  }
 
   if ('IntersectionObserver' in window) {
-    var reveal = new IntersectionObserver(function (entries) {
+    // The hidden photo sits 20px lower (its slide-up start). The 20px bottom margin cancels that
+    // out, so "10% visible" is measured against where the photo will actually end up.
+    var watcher = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          reveal.unobserve(entry.target);
+          watcher.unobserve(entry.target);
+          reveal(entry.target);
         }
       });
-    }, { threshold: 0.05, rootMargin: '0px 0px -60px 0px' });
-    figures.forEach(function (fig) { reveal.observe(fig); });
+    }, { threshold: REVEAL_AT, rootMargin: '0px 0px 20px 0px' });
+    figures.forEach(function (fig) { watcher.observe(fig); });
   } else {
     figures.forEach(function (fig) { fig.classList.add('is-visible'); });
   }
