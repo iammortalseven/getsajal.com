@@ -7,7 +7,7 @@
   "portfolio": {
     "title": "Portfolio",
     "description": "A curated collection of my photography",
-    "cover": "photo-11.wepb",
+    "cover": "",
     "coverPosition": "50% 50%",
     "coverOverlay": 0.08,
     "downloads": false
